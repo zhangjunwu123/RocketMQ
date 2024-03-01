@@ -22,7 +22,13 @@ public class NameServerAddressUtils {
     public static final String ENDPOINT_PREFIX = "(\\w+://|)";
     public static final Pattern NAMESRV_ENDPOINT_PATTERN = Pattern.compile("^http://.*");
     public static final Pattern INST_ENDPOINT_PATTERN = Pattern.compile("^" + ENDPOINT_PREFIX + INSTANCE_REGEX + "\\..*");
-
+    /**
+     * System.getenv与System.getProperty的区别
+     * 项	属性（System.getProperty）	环境变量（System.getenv）
+     * 运行时是否可修改	可以	不可以
+     * 有效范围	仅在java平台中有效	系统里所有程序都有效
+     * 创建的时机	打包应用时属性必须存在	可以在任何时候创建环境变量
+    * */
     public static String getNameServerAddresses() {
         return System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
     }

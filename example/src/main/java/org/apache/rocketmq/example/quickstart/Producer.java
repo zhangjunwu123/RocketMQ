@@ -38,8 +38,10 @@ public class Producer {
 
     public static void main(String[] args) throws MQClientException, InterruptedException {
 
-        /*
+        /**
+         * ===============================消息发送启动流程===============================================
          * Instantiate with a producer group name.
+         *
          */
         DefaultMQProducer producer = new DefaultMQProducer(PRODUCER_GROUP);
 
@@ -49,6 +51,7 @@ public class Producer {
          * Alternatively, you may specify name server addresses via exporting environmental variable: NAMESRV_ADDR
          * <pre>
          * {@code
+         * 设置NameSrv地址
          *  producer.setNamesrvAddr("name-server1-ip:9876;name-server2-ip:9876");
          * }
          * </pre>
@@ -60,6 +63,9 @@ public class Producer {
          * Launch the instance.
          */
         producer.start();
+        /**
+         * ===============================消息发送启动流程结束===============================================
+         * */
 
         for (int i = 0; i < MESSAGE_COUNT; i++) {
             try {

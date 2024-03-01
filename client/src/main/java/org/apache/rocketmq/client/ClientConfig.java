@@ -32,6 +32,7 @@ import org.apache.rocketmq.remoting.protocol.RequestType;
 
 /**
  * Client Common configuration
+ * 通用客户端配置类
  */
 public class ClientConfig {
     public static final String SEND_MESSAGE_WITH_VIP_CHANNEL_PROPERTY = "com.rocketmq.sendMessageWithVIPChannel";
@@ -41,9 +42,19 @@ public class ClientConfig {
     public static final String SEND_LATENCY_ENABLE = "com.rocketmq.sendLatencyEnable";
     public static final String START_DETECTOR_ENABLE = "com.rocketmq.startDetectorEnable";
     public static final String HEART_BEAT_V2 = "com.rocketmq.heartbeat.v2";
+    /**
+     * nameserver集群，获取环境配置中的namesrvAddr
+     * */
     private String namesrvAddr = NameServerAddressUtils.getNameServerAddresses();
+    /**
+     * 客户端地址IP
+     * */
     private String clientIP = NetworkUtil.getLocalAddress();
+    /**
+     * 获取客户端的名字配置，没有则设置为DEFAULT
+     * */
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
     protected String namespace;
     private boolean namespaceInitialized = false;

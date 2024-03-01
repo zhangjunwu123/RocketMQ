@@ -51,11 +51,19 @@ import org.apache.rocketmq.common.help.FAQUrl;
 import org.apache.rocketmq.common.utils.IOTinyUtils;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
-
+/**
+ * 配置文件装载对应的类
+ * */
 public class MixAll {
     public static final String ROCKETMQ_HOME_ENV = "ROCKETMQ_HOME";
     public static final String ROCKETMQ_HOME_PROPERTY = "rocketmq.home.dir";
+    /**
+     * nameserver集群配置key
+     * */
     public static final String NAMESRV_ADDR_ENV = "NAMESRV_ADDR";
+    /**
+     * nameserver集群配置key
+     * */
     public static final String NAMESRV_ADDR_PROPERTY = "rocketmq.namesrv.addr";
     public static final String MESSAGE_COMPRESS_TYPE = "rocketmq.message.compressType";
     public static final String MESSAGE_COMPRESS_LEVEL = "rocketmq.message.compressLevel";

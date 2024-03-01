@@ -65,9 +65,17 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Wrapping internal implementations for virtually all methods presented in this class.
+     * 在持久化对象时，对于一些特殊的数据成员（如用户的密码，银行卡号等），我们不想用序列化机制来保存它。
+     * 为了在一个特定对象的一个成员变量上关闭序列化，可以在这个成员变量前加上关键字transien
      */
     protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
     private final Logger logger = LoggerFactory.getLogger(DefaultMQProducer.class);
+    /**
+     * 线程安全Set，基于CopyOnWriteArrayList实现，底层是数组
+     * CopyOnWriteArraySet在读取操作比较频繁、写入操作相对较少的情况下可以提高程序的性能和可靠性。它的线程安全机制和CopyOnWriteArrayList一样，是通过volatile和互斥锁实现的
+     * CopyOnWriteArraySet适合用在读多写少、对数据一致性要求不高、对线程安全性要求高的场景
+     * 如果写操作比较频繁，可以考虑使用其他线程安全集合类，如ConcurrentHashMap或ConcurrentSkipListSet等。这些集合类采用了不同的同步策略，可以更好地支持并发访问。
+     * */
     private final Set<Integer> retryResponseCodes = new CopyOnWriteArraySet<>(Arrays.asList(
         ResponseCode.TOPIC_NOT_EXIST,
         ResponseCode.SERVICE_NOT_AVAILABLE,
@@ -84,26 +92,32 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * For non-transactional messages, it does not matter as long as it's unique per process. </p>
      * <p>
      * See <a href="https://rocketmq.apache.org/docs/introduction/02concepts">core concepts</a> for more discussion.
+     * 生产者组在概念上聚合了完全相同角色的所有生产者实例，这在涉及事务消息时尤为重要<p>
+     *     <p>对于非事务性消息，只要它在每个进程中是唯一的，就无关紧
      */
     private String producerGroup;
 
     /**
      * Just for testing or demo program
+     * 自动创建topic，线上不建议使用
      */
     private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
     /**
      * Number of queues to create per default topic.
+     * 默认每个topic分配4个队列
      */
     private volatile int defaultTopicQueueNums = 4;
 
     /**
      * Timeout for sending messages.
+     * 发送时间超时时间3s
      */
     private int sendMsgTimeout = 3000;
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     * 压缩消息正文阈值，即默认情况下压缩大于4k的消息正文
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
@@ -111,6 +125,8 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Maximum number of retry to perform internally before claiming sending failure in synchronous mode. </p>
      * <p>
      * This may potentially cause message duplication which is up to application developers to resolve.
+     * 在同步模式下声明发送失败之前，内部要执行的最大重试次数<p>
+     *     <p>这可能会导致消息重复，这由应用程序开发人员来解决
      */
     private int retryTimesWhenSendFailed = 2;
 
@@ -309,6 +325,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     @Override
     public void start() throws MQClientException {
         this.setProducerGroup(withNamespace(this.producerGroup));
+        //开始入口
         this.defaultMQProducerImpl.start();
         if (this.produceAccumulator != null) {
             this.produceAccumulator.start();
