@@ -457,6 +457,10 @@ public class BrokerController {
         this.scheduledExecutorService = ThreadUtils.newScheduledThreadPool(1,
             new ThreadFactoryImpl("BrokerControllerScheduledThread", true, getBrokerIdentity()));
 
+        /**
+         * 使用线程处理发送消息
+         *
+         * */
         this.sendMessageExecutor = ThreadUtils.newThreadPoolExecutor(
             this.brokerConfig.getSendMessageThreadPoolNums(),
             this.brokerConfig.getSendMessageThreadPoolNums(),
@@ -824,7 +828,9 @@ public class BrokerController {
         if (result) {
 
             initializeRemotingServer();
-
+            /**
+             * 开辟线程池准备处理资源
+             * */
             initializeResources();
 
             registerProcessor();
@@ -1007,7 +1013,9 @@ public class BrokerController {
          */
         sendMessageProcessor.registerSendMessageHook(sendMessageHookList);
         sendMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
-
+        /**
+         * SendMessageProcessor注册可处理的消息类型
+         * */
         this.remotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
         this.remotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendMessageProcessor, this.sendMessageExecutor);
         this.remotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);

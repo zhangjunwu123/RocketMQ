@@ -56,7 +56,11 @@ import org.apache.rocketmq.srvutil.FileWatchService;
 public class NamesrvController {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private static final Logger WATER_MARK_LOG = LoggerFactory.getLogger(LoggerName.NAMESRV_WATER_MARK_LOGGER_NAME);
-
+    /**
+     * Nameserver的配置
+     * 定义final Object a，则a只能被初始化一次，一旦初始化，a的数据无法修改，若a为引用类型，则不能重新绑定其他对象
+     * final修饰类定义，则类不能被继承，修饰方法代表方法不能被重写
+     * */
     private final NamesrvConfig namesrvConfig;
 
     private final NettyServerConfig nettyServerConfig;
