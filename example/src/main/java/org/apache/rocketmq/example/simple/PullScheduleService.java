@@ -24,7 +24,7 @@ import org.apache.rocketmq.client.consumer.PullTaskCallback;
 import org.apache.rocketmq.client.consumer.PullTaskContext;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
+import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 
 public class PullScheduleService {
 
@@ -32,7 +32,7 @@ public class PullScheduleService {
         final MQPullConsumerScheduleService scheduleService = new MQPullConsumerScheduleService("GroupName1");
 
         scheduleService.setMessageModel(MessageModel.CLUSTERING);
-        scheduleService.registerPullTaskCallback("TopicTest", new PullTaskCallback() {
+        scheduleService.registerPullTaskCallback("TopicTest1", new PullTaskCallback() {
 
             @Override
             public void doPullTask(MessageQueue mq, PullTaskContext context) {

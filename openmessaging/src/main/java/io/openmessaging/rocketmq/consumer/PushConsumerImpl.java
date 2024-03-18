@@ -18,12 +18,12 @@ package io.openmessaging.rocketmq.consumer;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
+import io.openmessaging.MessageListener;
 import io.openmessaging.OMS;
-import io.openmessaging.OMSBuiltinKeys;
-import io.openmessaging.consumer.MessageListener;
-import io.openmessaging.consumer.PushConsumer;
+import io.openmessaging.PropertyKeys;
+import io.openmessaging.PushConsumer;
+import io.openmessaging.ReceivedMessageContext;
 import io.openmessaging.exception.OMSRuntimeException;
-import io.openmessaging.interceptor.ConsumerInterceptor;
 import io.openmessaging.rocketmq.config.ClientConfig;
 import io.openmessaging.rocketmq.domain.NonStandardKeys;
 import io.openmessaging.rocketmq.utils.BeanUtils;
@@ -39,7 +39,6 @@ import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
 public class PushConsumerImpl implements PushConsumer {
     private final DefaultMQPushConsumer rocketmqPushConsumer;
@@ -53,15 +52,13 @@ public class PushConsumerImpl implements PushConsumer {
         this.properties = properties;
         this.clientConfig = BeanUtils.populate(properties, ClientConfig.class);
 
-        if ("true".equalsIgnoreCase(System.getenv("OMS_RMQ_DIRECT_NAME_SRV"))) {
-            String accessPoints = clientConfig.getAccessPoints();
-            if (accessPoints == null || accessPoints.isEmpty()) {
-                throw new OMSRuntimeException("-1", "OMS AccessPoints is null or empty.");
-            }
-            this.rocketmqPushConsumer.setNamesrvAddr(accessPoints.replace(',', ';'));
+        String accessPoints = clientConfig.getOmsAccessPoints();
+        if (accessPoints == null || accessPoints.isEmpty()) {
+            throw new OMSRuntimeException("-1", "OMS AccessPoints is null or empty.");
         }
+        this.rocketmqPushConsumer.setNamesrvAddr(accessPoints.replace(',', ';'));
 
-        String consumerGroup = clientConfig.getConsumerId();
+        String consumerGroup = clientConfig.getRmqConsumerGroup();
         if (null == consumerGroup || consumerGroup.isEmpty()) {
             throw new OMSRuntimeException("-1", "Consumer Group is necessary for RocketMQ, please set it.");
         }
@@ -73,14 +70,13 @@ public class PushConsumerImpl implements PushConsumer {
 
         String consumerId = OMSUtil.buildInstanceName();
         this.rocketmqPushConsumer.setInstanceName(consumerId);
-        properties.put(OMSBuiltinKeys.CONSUMER_ID, consumerId);
-        this.rocketmqPushConsumer.setLanguage(LanguageCode.OMS);
+        properties.put(PropertyKeys.CONSUMER_ID, consumerId);
 
         this.rocketmqPushConsumer.registerMessageListener(new MessageListenerImpl());
     }
 
     @Override
-    public KeyValue attributes() {
+    public KeyValue properties() {
         return properties;
     }
 
@@ -95,13 +91,8 @@ public class PushConsumerImpl implements PushConsumer {
     }
 
     @Override
-    public void suspend(long timeout) {
-
-    }
-
-    @Override
     public boolean isSuspended() {
-        return this.rocketmqPushConsumer.isPause();
+        return this.rocketmqPushConsumer.getDefaultMQPushConsumerImpl().isPause();
     }
 
     @Override
@@ -113,32 +104,6 @@ public class PushConsumerImpl implements PushConsumer {
             throw new OMSRuntimeException("-1", String.format("RocketMQ push consumer can't attach to %s.", queueName));
         }
         return this;
-    }
-
-    @Override
-    public PushConsumer attachQueue(String queueName, MessageListener listener, KeyValue attributes) {
-        return this.attachQueue(queueName, listener);
-    }
-
-    @Override
-    public PushConsumer detachQueue(String queueName) {
-        this.subscribeTable.remove(queueName);
-        try {
-            this.rocketmqPushConsumer.unsubscribe(queueName);
-        } catch (Exception e) {
-            throw new OMSRuntimeException("-1", String.format("RocketMQ push consumer fails to unsubscribe topic: %s", queueName));
-        }
-        return null;
-    }
-
-    @Override
-    public void addInterceptor(ConsumerInterceptor interceptor) {
-
-    }
-
-    @Override
-    public void removeInterceptor(ConsumerInterceptor interceptor) {
-
     }
 
     @Override
@@ -181,9 +146,9 @@ public class PushConsumerImpl implements PushConsumer {
 
             contextProperties.put(NonStandardKeys.MESSAGE_CONSUME_STATUS, ConsumeConcurrentlyStatus.RECONSUME_LATER.name());
 
-            MessageListener.Context context = new MessageListener.Context() {
+            ReceivedMessageContext context = new ReceivedMessageContext() {
                 @Override
-                public KeyValue attributes() {
+                public KeyValue properties() {
                     return contextProperties;
                 }
 
@@ -193,9 +158,16 @@ public class PushConsumerImpl implements PushConsumer {
                     contextProperties.put(NonStandardKeys.MESSAGE_CONSUME_STATUS,
                         ConsumeConcurrentlyStatus.CONSUME_SUCCESS.name());
                 }
+
+                @Override
+                public void ack(final KeyValue properties) {
+                    sync.countDown();
+                    contextProperties.put(NonStandardKeys.MESSAGE_CONSUME_STATUS,
+                        properties.getString(NonStandardKeys.MESSAGE_CONSUME_STATUS));
+                }
             };
             long begin = System.currentTimeMillis();
-            listener.onReceived(omsMsg, context);
+            listener.onMessage(omsMsg, context);
             long costs = System.currentTimeMillis() - begin;
             long timeoutMills = clientConfig.getRmqMessageConsumeTimeout() * 60 * 1000;
             try {

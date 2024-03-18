@@ -17,10 +17,9 @@
 
 package org.apache.rocketmq.test.client.consumer.broadcast.normal;
 
+import org.apache.log4j.Logger;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
-import org.apache.rocketmq.test.client.consumer.broadcast.BaseBroadcast;
+import org.apache.rocketmq.test.client.consumer.broadcast.BaseBroadCastIT;
 import org.apache.rocketmq.test.client.rmq.RMQBroadCastConsumer;
 import org.apache.rocketmq.test.client.rmq.RMQNormalProducer;
 import org.apache.rocketmq.test.listener.rmq.concurrent.RMQNormalListener;
@@ -28,23 +27,22 @@ import org.apache.rocketmq.test.util.VerifyUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.google.common.truth.Truth.assertThat;
 
-public class BroadcastNormalMsgRecvFailIT extends BaseBroadcast {
-    private static Logger logger = LoggerFactory
+public class BroadCastNormalMsgRecvFailIT extends BaseBroadCastIT {
+    private static Logger logger = Logger
         .getLogger(NormalMsgTwoSameGroupConsumerIT.class);
     private RMQNormalProducer producer = null;
     private String topic = null;
 
     @Before
     public void setUp() {
-        printSeparator();
+        printSeperator();
         topic = initTopic();
         logger.info(String.format("use topic: %s;", topic));
-        producer = getProducer(NAMESRV_ADDR, topic);
+        producer = getProducer(nsAddr, topic);
     }
 
     @After
@@ -52,21 +50,20 @@ public class BroadcastNormalMsgRecvFailIT extends BaseBroadcast {
         super.shutdown();
     }
 
-    @Ignore
     @Test
     public void testStartTwoConsumerAndOneConsumerFail() {
         int msgSize = 16;
 
-        RMQBroadCastConsumer consumer1 = getBroadCastConsumer(NAMESRV_ADDR, topic, "*",
+        RMQBroadCastConsumer consumer1 = getBroadCastConsumer(nsAddr, topic, "*",
             new RMQNormalListener());
-        RMQBroadCastConsumer consumer2 = getBroadCastConsumer(NAMESRV_ADDR,
+        RMQBroadCastConsumer consumer2 = getBroadCastConsumer(nsAddr,
             consumer1.getConsumerGroup(), topic, "*",
             new RMQNormalListener(ConsumeConcurrentlyStatus.RECONSUME_LATER));
 
         producer.send(msgSize);
         Assert.assertEquals("Not all sent succeeded", msgSize, producer.getAllUndupMsgBody().size());
 
-        consumer1.getListener().waitForMessageConsume(producer.getAllMsgBody(), CONSUME_TIME);
+        consumer1.getListener().waitForMessageConsume(producer.getAllMsgBody(), consumeTime);
 
         assertThat(VerifyUtils.getFilterdMessage(producer.getAllMsgBody(),
             consumer1.getListener().getAllMsgBody()))

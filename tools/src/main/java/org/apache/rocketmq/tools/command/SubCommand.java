@@ -23,10 +23,6 @@ import org.apache.rocketmq.remoting.RPCHook;
 public interface SubCommand {
     String commandName();
 
-    default String commandAlias() {
-        return null;
-    }
-
     String commandDesc();
 
     Options buildCommandlineOptions(final Options options);

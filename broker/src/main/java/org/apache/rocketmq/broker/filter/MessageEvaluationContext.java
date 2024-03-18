@@ -21,7 +21,6 @@ import org.apache.rocketmq.filter.expression.EvaluationContext;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Evaluation context from message.
@@ -48,10 +47,10 @@ public class MessageEvaluationContext implements EvaluationContext {
             return null;
         }
 
-        Map<String, Object> copy = new HashMap<>(properties.size(), 1);
+        Map<String, Object> copy = new HashMap<String, Object>(properties.size(), 1);
 
-        for (Entry<String, String> entry : properties.entrySet()) {
-            copy.put(entry.getKey(), entry.getValue());
+        for (String key : properties.keySet()) {
+            copy.put(key, properties.get(key));
         }
 
         return copy;

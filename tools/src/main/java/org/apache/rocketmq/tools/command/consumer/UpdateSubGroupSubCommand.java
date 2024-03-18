@@ -16,16 +16,12 @@
  */
 package org.apache.rocketmq.tools.command.consumer;
 
-import com.alibaba.fastjson.JSON;
-import java.util.Map;
 import java.util.Set;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.apache.rocketmq.common.attribute.AttributeParser;
+import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.remoting.RPCHook;
-import org.apache.rocketmq.remoting.protocol.subscription.GroupRetryPolicy;
-import org.apache.rocketmq.remoting.protocol.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 import org.apache.rocketmq.tools.command.CommandUtil;
@@ -41,7 +37,7 @@ public class UpdateSubGroupSubCommand implements SubCommand {
 
     @Override
     public String commandDesc() {
-        return "Update or create subscription group.";
+        return "Update or create subscription group";
     }
 
     @Override
@@ -70,22 +66,11 @@ public class UpdateSubGroupSubCommand implements SubCommand {
         opt.setRequired(false);
         options.addOption(opt);
 
-        opt = new Option("o", "consumeMessageOrderly", true, "consume message orderly");
-        opt.setRequired(false);
-        options.addOption(opt);
-
         opt = new Option("q", "retryQueueNums", true, "retry queue nums");
         opt.setRequired(false);
         options.addOption(opt);
 
         opt = new Option("r", "retryMaxTimes", true, "retry max times");
-        opt.setRequired(false);
-        options.addOption(opt);
-
-        opt = new Option("p", "groupRetryPolicy", true,
-            "the json string of retry policy ( exp: " +
-                "{\"type\":\"EXPONENTIAL\",\"exponentialRetryPolicy\":{\"initial\":5000,\"max\":7200000,\"multiplier\":2}} " +
-                "{\"type\":\"CUSTOMIZED\",\"customizedRetryPolicy\":{\"next\":[1000,5000,10000]}} )");
         opt.setRequired(false);
         options.addOption(opt);
 
@@ -98,10 +83,6 @@ public class UpdateSubGroupSubCommand implements SubCommand {
         options.addOption(opt);
 
         opt = new Option("a", "notifyConsumerIdsChanged", true, "notify consumerId changed");
-        opt.setRequired(false);
-        options.addOption(opt);
-
-        opt = new Option(null, "attributes", true, "attribute(+a=b,+c=d,-e)");
         opt.setRequired(false);
         options.addOption(opt);
 
@@ -141,12 +122,6 @@ public class UpdateSubGroupSubCommand implements SubCommand {
                     .getOptionValue('d').trim()));
             }
 
-            // consumeMessageOrderly
-            if (commandLine.hasOption('o')) {
-                subscriptionGroupConfig.setConsumeMessageOrderly(Boolean.parseBoolean(commandLine
-                    .getOptionValue('o').trim()));
-            }
-
             // retryQueueNums
             if (commandLine.hasOption('q')) {
                 subscriptionGroupConfig.setRetryQueueNums(Integer.parseInt(commandLine.getOptionValue('q')
@@ -157,13 +132,6 @@ public class UpdateSubGroupSubCommand implements SubCommand {
             if (commandLine.hasOption('r')) {
                 subscriptionGroupConfig.setRetryMaxTimes(Integer.parseInt(commandLine.getOptionValue('r')
                     .trim()));
-            }
-
-            // groupRetryPolicy
-            if (commandLine.hasOption('p')) {
-                String groupRetryPolicyJson = commandLine.getOptionValue('p').trim();
-                GroupRetryPolicy groupRetryPolicy = JSON.parseObject(groupRetryPolicyJson, GroupRetryPolicy.class);
-                subscriptionGroupConfig.setGroupRetryPolicy(groupRetryPolicy);
             }
 
             // brokerId
@@ -181,12 +149,6 @@ public class UpdateSubGroupSubCommand implements SubCommand {
             if (commandLine.hasOption('a')) {
                 subscriptionGroupConfig.setNotifyConsumerIdsChangedEnable(Boolean.parseBoolean(commandLine
                     .getOptionValue('a').trim()));
-            }
-
-            if (commandLine.hasOption("attributes")) {
-                String attributesModification = commandLine.getOptionValue("attributes").trim();
-                Map<String, String> attributes = AttributeParser.parseToMap(attributesModification);
-                subscriptionGroupConfig.setAttributes(attributes);
             }
 
             if (commandLine.hasOption('b')) {

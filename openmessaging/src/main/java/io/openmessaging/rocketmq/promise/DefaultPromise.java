@@ -17,13 +17,12 @@
 package io.openmessaging.rocketmq.promise;
 
 import io.openmessaging.Promise;
-import io.openmessaging.FutureListener;
+import io.openmessaging.PromiseListener;
 import io.openmessaging.exception.OMSRuntimeException;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DefaultPromise<V> implements Promise<V> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultPromise.class);
@@ -33,7 +32,7 @@ public class DefaultPromise<V> implements Promise<V> {
     private long timeout;
     private long createTime;
     private Throwable exception = null;
-    private List<FutureListener<V>> promiseListenerList;
+    private List<PromiseListener<V>> promiseListenerList;
 
     public DefaultPromise() {
         createTime = System.currentTimeMillis();
@@ -121,7 +120,7 @@ public class DefaultPromise<V> implements Promise<V> {
     }
 
     @Override
-    public void addListener(final FutureListener<V> listener) {
+    public void addListener(final PromiseListener<V> listener) {
         if (listener == null) {
             throw new NullPointerException("FutureListener is null");
         }
@@ -150,14 +149,14 @@ public class DefaultPromise<V> implements Promise<V> {
 
     private void notifyListeners() {
         if (promiseListenerList != null) {
-            for (FutureListener<V> listener : promiseListenerList) {
+            for (PromiseListener<V> listener : promiseListenerList) {
                 notifyListener(listener);
             }
         }
     }
 
     private boolean isSuccess() {
-        return isDone() && exception == null;
+        return isDone() && (exception == null);
     }
 
     private void timeoutSoCancel() {
@@ -199,9 +198,12 @@ public class DefaultPromise<V> implements Promise<V> {
         return true;
     }
 
-    private void notifyListener(final FutureListener<V> listener) {
+    private void notifyListener(final PromiseListener<V> listener) {
         try {
-            listener.operationComplete(this);
+            if (exception != null)
+                listener.operationFailed(this);
+            else
+                listener.operationCompleted(this);
         } catch (Throwable t) {
             LOG.error("notifyListener {} Error:{}", listener.getClass().getSimpleName(), t);
         }

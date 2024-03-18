@@ -74,7 +74,7 @@ public class PrintMessageByQueueCommand implements SubCommand {
         if (!calByTag)
             return;
 
-        List<TagCountBean> list = new ArrayList<>();
+        List<TagCountBean> list = new ArrayList<TagCountBean>();
         for (Map.Entry<String, AtomicLong> entry : tagCalmap.entrySet()) {
             TagCountBean tagBean = new TagCountBean(entry.getKey(), entry.getValue());
             list.add(tagBean);
@@ -93,7 +93,7 @@ public class PrintMessageByQueueCommand implements SubCommand {
 
         for (MessageExt msg : msgs) {
             try {
-                System.out.printf("MSGID: %s %s BODY: %s%n", msg.getMsgId(), msg,
+                System.out.printf("MSGID: %s %s BODY: %s%n", msg.getMsgId(), msg.toString(),
                     printBody ? new String(msg.getBody(), charsetName) : "NOT PRINT BODY");
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
@@ -108,7 +108,7 @@ public class PrintMessageByQueueCommand implements SubCommand {
 
     @Override
     public String commandDesc() {
-        return "Print Message Detail by queueId.";
+        return "Print Message Detail";
     }
 
     @Override
@@ -193,7 +193,7 @@ public class PrintMessageByQueueCommand implements SubCommand {
                 maxOffset = consumer.searchOffset(mq, timeValue);
             }
 
-            final Map<String, AtomicLong> tagCalmap = new HashMap<>();
+            final Map<String, AtomicLong> tagCalmap = new HashMap<String, AtomicLong>();
             READQ:
             for (long offset = minOffset; offset < maxOffset; ) {
                 try {

@@ -17,84 +17,22 @@
 
 package org.apache.rocketmq.client.latency;
 
-import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.impl.producer.TopicPublishInfo;
-import org.apache.rocketmq.client.impl.producer.TopicPublishInfo.QueueFilter;
+import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
+import org.slf4j.Logger;
 
 public class MQFaultStrategy {
-    private LatencyFaultTolerance<String> latencyFaultTolerance;
-    private volatile boolean sendLatencyFaultEnable;
-    private volatile boolean startDetectorEnable;
-    private long[] latencyMax = {50L, 100L, 550L, 1800L, 3000L, 5000L, 15000L};
-    private long[] notAvailableDuration = {0L, 0L, 2000L, 5000L, 6000L, 10000L, 30000L};
+    private final static Logger log = ClientLogger.getLog();
+    private final LatencyFaultTolerance<String> latencyFaultTolerance = new LatencyFaultToleranceImpl();
 
-    public static class BrokerFilter implements QueueFilter {
-        private String lastBrokerName;
+    private boolean sendLatencyFaultEnable = false;
 
-        public void setLastBrokerName(String lastBrokerName) {
-            this.lastBrokerName = lastBrokerName;
-        }
-
-        @Override public boolean filter(MessageQueue mq) {
-            if (lastBrokerName != null) {
-                return !mq.getBrokerName().equals(lastBrokerName);
-            }
-            return true;
-        }
-    }
-
-    private ThreadLocal<BrokerFilter> threadBrokerFilter = new ThreadLocal<BrokerFilter>() {
-        @Override protected BrokerFilter initialValue() {
-            return new BrokerFilter();
-        }
-    };
-
-    private QueueFilter reachableFilter = new QueueFilter() {
-        @Override public boolean filter(MessageQueue mq) {
-            return latencyFaultTolerance.isReachable(mq.getBrokerName());
-        }
-    };
-
-    private QueueFilter availableFilter = new QueueFilter() {
-        @Override public boolean filter(MessageQueue mq) {
-            return latencyFaultTolerance.isAvailable(mq.getBrokerName());
-        }
-    };
-
-
-    public MQFaultStrategy(ClientConfig cc, Resolver fetcher, ServiceDetector serviceDetector) {
-        this.latencyFaultTolerance = new LatencyFaultToleranceImpl(fetcher, serviceDetector);
-        this.latencyFaultTolerance.setDetectInterval(cc.getDetectInterval());
-        this.latencyFaultTolerance.setDetectTimeout(cc.getDetectTimeout());
-        this.setStartDetectorEnable(cc.isStartDetectorEnable());
-        this.setSendLatencyFaultEnable(cc.isSendLatencyEnable());
-    }
-
-    // For unit test.
-    public MQFaultStrategy(ClientConfig cc, LatencyFaultTolerance<String> tolerance) {
-        this.setStartDetectorEnable(cc.isStartDetectorEnable());
-        this.setSendLatencyFaultEnable(cc.isSendLatencyEnable());
-        this.latencyFaultTolerance = tolerance;
-        this.latencyFaultTolerance.setDetectInterval(cc.getDetectInterval());
-        this.latencyFaultTolerance.setDetectTimeout(cc.getDetectTimeout());
-    }
-
+    private long[] latencyMax = {50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L};
+    private long[] notAvailableDuration = {0L, 0L, 30000L, 60000L, 120000L, 180000L, 600000L};
 
     public long[] getNotAvailableDuration() {
         return notAvailableDuration;
-    }
-
-    public QueueFilter getAvailableFilter() {
-        return availableFilter;
-    }
-
-    public QueueFilter getReachableFilter() {
-        return reachableFilter;
-    }
-
-    public ThreadLocal<BrokerFilter> getThreadBrokerFilter() {
-        return threadBrokerFilter;
     }
 
     public void setNotAvailableDuration(final long[] notAvailableDuration) {
@@ -117,63 +55,54 @@ public class MQFaultStrategy {
         this.sendLatencyFaultEnable = sendLatencyFaultEnable;
     }
 
-    public boolean isStartDetectorEnable() {
-        return startDetectorEnable;
-    }
-
-    public void setStartDetectorEnable(boolean startDetectorEnable) {
-        this.startDetectorEnable = startDetectorEnable;
-        this.latencyFaultTolerance.setStartDetectorEnable(startDetectorEnable);
-    }
-
-    public void startDetector() {
-        this.latencyFaultTolerance.startDetector();
-    }
-
-    public void shutdown() {
-        this.latencyFaultTolerance.shutdown();
-    }
-
-    public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName, final boolean resetIndex) {
-        BrokerFilter brokerFilter = threadBrokerFilter.get();
-        brokerFilter.setLastBrokerName(lastBrokerName);
+    public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) {
-            if (resetIndex) {
-                tpInfo.resetIndex();
-            }
-            MessageQueue mq = tpInfo.selectOneMessageQueue(availableFilter, brokerFilter);
-            if (mq != null) {
-                return mq;
-            }
+            try {
+                int index = tpInfo.getSendWhichQueue().getAndIncrement();
+                for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
+                    int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size();
+                    if (pos < 0)
+                        pos = 0;
+                    MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
+                    if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) {
+                        if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName))
+                            return mq;
+                    }
+                }
 
-            mq = tpInfo.selectOneMessageQueue(reachableFilter, brokerFilter);
-            if (mq != null) {
-                return mq;
+                final String notBestBroker = latencyFaultTolerance.pickOneAtLeast();
+                int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker);
+                if (writeQueueNums > 0) {
+                    final MessageQueue mq = tpInfo.selectOneMessageQueue();
+                    if (notBestBroker != null) {
+                        mq.setBrokerName(notBestBroker);
+                        mq.setQueueId(tpInfo.getSendWhichQueue().getAndIncrement() % writeQueueNums);
+                    }
+                    return mq;
+                } else {
+                    latencyFaultTolerance.remove(notBestBroker);
+                }
+            } catch (Exception e) {
+                log.error("Error occurred when selecting message queue", e);
             }
 
             return tpInfo.selectOneMessageQueue();
         }
 
-        MessageQueue mq = tpInfo.selectOneMessageQueue(brokerFilter);
-        if (mq != null) {
-            return mq;
-        }
-        return tpInfo.selectOneMessageQueue();
+        return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 
-    public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation,
-                                final boolean reachable) {
+    public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation) {
         if (this.sendLatencyFaultEnable) {
-            long duration = computeNotAvailableDuration(isolation ? 10000 : currentLatency);
-            this.latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration, reachable);
+            long duration = computeNotAvailableDuration(isolation ? 30000 : currentLatency);
+            this.latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration);
         }
     }
 
     private long computeNotAvailableDuration(final long currentLatency) {
         for (int i = latencyMax.length - 1; i >= 0; i--) {
-            if (currentLatency >= latencyMax[i]) {
+            if (currentLatency >= latencyMax[i])
                 return this.notAvailableDuration[i];
-            }
         }
 
         return 0;

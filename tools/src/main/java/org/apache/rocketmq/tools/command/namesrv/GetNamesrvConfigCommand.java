@@ -20,9 +20,7 @@ package org.apache.rocketmq.tools.command.namesrv;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.rocketmq.remoting.RPCHook;
@@ -68,11 +66,11 @@ public class GetNamesrvConfigCommand implements SubCommand {
 
             Map<String, Properties> nameServerConfigs = defaultMQAdminExt.getNameServerConfig(serverList);
 
-            for (Entry<String, Properties> nameServerConfigEntry : nameServerConfigs.entrySet()) {
+            for (String server : nameServerConfigs.keySet()) {
                 System.out.printf("============%s============\n",
-                        nameServerConfigEntry.getKey());
-                for (Entry<Object, Object> entry : nameServerConfigEntry.getValue().entrySet()) {
-                    System.out.printf("%-50s=  %s\n", entry.getKey(), entry.getValue());
+                    server);
+                for (Object key : nameServerConfigs.get(server).keySet()) {
+                    System.out.printf("%-50s=  %s\n", key, nameServerConfigs.get(server).get(key));
                 }
             }
         } catch (Exception e) {

@@ -17,44 +17,40 @@
 
 package org.apache.rocketmq.test.client.rmq;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.log4j.Logger;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.MessageQueueSelector;
 import org.apache.rocketmq.client.producer.SendCallback;
-import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.test.clientinterface.AbstractMQProducer;
-import org.apache.rocketmq.test.sendresult.ResultWrapper;
+import org.apache.rocketmq.test.sendresult.SendResult;
 import org.apache.rocketmq.test.util.RandomUtil;
 import org.apache.rocketmq.test.util.TestUtil;
 
 public class RMQAsyncSendProducer extends AbstractMQProducer {
-    private static Logger logger = LoggerFactory
+    private static Logger logger = Logger
         .getLogger(RMQAsyncSendProducer.class);
     private String nsAddr = null;
     private DefaultMQProducer producer = null;
     private SendCallback sendCallback = null;
-    private List<SendResult> successSendResult = Collections.synchronizedList(new ArrayList<SendResult>());
-    private AtomicInteger exceptionMsgCount = new AtomicInteger(0);
+    private List<org.apache.rocketmq.client.producer.SendResult> successSendResult = new ArrayList<org.apache.rocketmq.client.producer.SendResult>();
+    private AtomicInteger exceptionMsgCount = new AtomicInteger(
+        0);
     private int msgSize = 0;
 
     public RMQAsyncSendProducer(String nsAddr, String topic) {
         super(topic);
         this.nsAddr = nsAddr;
         sendCallback = new SendCallback() {
-            @Override
-            public void onSuccess(SendResult sendResult) {
+            public void onSuccess(org.apache.rocketmq.client.producer.SendResult sendResult) {
                 successSendResult.add(sendResult);
             }
-            @Override
+
             public void onException(Throwable throwable) {
                 exceptionMsgCount.getAndIncrement();
             }
@@ -68,7 +64,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         return successSendResult.size();
     }
 
-    public List<SendResult> getSuccessSendResult() {
+    public List<org.apache.rocketmq.client.producer.SendResult> getSuccessSendResult() {
         return successSendResult;
     }
 
@@ -96,12 +92,10 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         }
     }
 
-    @Override
-    public ResultWrapper send(Object msg, Object arg) {
+    public SendResult send(Object msg, Object arg) {
         return null;
     }
 
-    @Override
     public void shutdown() {
         producer.shutdown();
     }
@@ -110,7 +104,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         Message metaqMsg = (Message) msg;
         try {
             producer.send(metaqMsg, sendCallback);
-            msgBodys.addData(new String(metaqMsg.getBody(), StandardCharsets.UTF_8));
+            msgBodys.addData(new String(metaqMsg.getBody()));
             originMsgs.addData(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -121,7 +115,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         this.msgSize = msgSize;
 
         for (int i = 0; i < msgSize; i++) {
-            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes());
             this.asyncSend(msg);
         }
     }
@@ -130,7 +124,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         Message metaqMsg = (Message) msg;
         try {
             producer.send(metaqMsg, selector, arg, sendCallback);
-            msgBodys.addData(new String(metaqMsg.getBody(), StandardCharsets.UTF_8));
+            msgBodys.addData(new String(metaqMsg.getBody()));
             originMsgs.addData(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -140,7 +134,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
     public void asyncSend(int msgSize, MessageQueueSelector selector) {
         this.msgSize = msgSize;
         for (int i = 0; i < msgSize; i++) {
-            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes());
             this.asyncSend(msg, selector, i);
         }
     }
@@ -149,7 +143,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         Message metaqMsg = (Message) msg;
         try {
             producer.send(metaqMsg, mq, sendCallback);
-            msgBodys.addData(new String(metaqMsg.getBody(), StandardCharsets.UTF_8));
+            msgBodys.addData(new String(metaqMsg.getBody()));
             originMsgs.addData(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -159,7 +153,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
     public void asyncSend(int msgSize, MessageQueue mq) {
         this.msgSize = msgSize;
         for (int i = 0; i < msgSize; i++) {
-            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes());
             this.asyncSend(msg, mq);
         }
     }
@@ -180,7 +174,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         Message metaqMsg = (Message) msg;
         try {
             producer.sendOneway(metaqMsg);
-            msgBodys.addData(new String(metaqMsg.getBody(), StandardCharsets.UTF_8));
+            msgBodys.addData(new String(metaqMsg.getBody()));
             originMsgs.addData(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -189,7 +183,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
 
     public void sendOneWay(int msgSize) {
         for (int i = 0; i < msgSize; i++) {
-            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes());
             this.sendOneWay(msg);
         }
     }
@@ -198,7 +192,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         Message metaqMsg = (Message) msg;
         try {
             producer.sendOneway(metaqMsg, mq);
-            msgBodys.addData(new String(metaqMsg.getBody(), StandardCharsets.UTF_8));
+            msgBodys.addData(new String(metaqMsg.getBody()));
             originMsgs.addData(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -207,7 +201,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
 
     public void sendOneWay(int msgSize, MessageQueue mq) {
         for (int i = 0; i < msgSize; i++) {
-            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes());
             this.sendOneWay(msg, mq);
         }
     }
@@ -216,7 +210,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
         Message metaqMsg = (Message) msg;
         try {
             producer.sendOneway(metaqMsg, selector, arg);
-            msgBodys.addData(new String(metaqMsg.getBody(), StandardCharsets.UTF_8));
+            msgBodys.addData(new String(metaqMsg.getBody()));
             originMsgs.addData(msg);
         } catch (Exception e) {
             e.printStackTrace();
@@ -225,7 +219,7 @@ public class RMQAsyncSendProducer extends AbstractMQProducer {
 
     public void sendOneWay(int msgSize, MessageQueueSelector selector) {
         for (int i = 0; i < msgSize; i++) {
-            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(topic, RandomUtil.getStringByUUID().getBytes());
             this.sendOneWay(msg, selector, i);
         }
     }

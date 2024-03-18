@@ -20,15 +20,13 @@ package org.apache.rocketmq.test.util;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
+import org.apache.log4j.Logger;
 import org.apache.rocketmq.test.listener.AbstractListener;
 
 import static com.google.common.truth.Truth.assertThat;
 
 public class MQWait {
-    private static Logger logger = LoggerFactory.getLogger(MQWait.class);
+    private static Logger logger = Logger.getLogger(MQWait.class);
 
     public static boolean waitConsumeAll(int timeoutMills, Collection<Object> allSendMsgs,
         AbstractListener... listeners) {
@@ -78,7 +76,7 @@ public class MQWait {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String args[]) {
 
         long start = System.currentTimeMillis();
         MQWait.setCondition(new Condition() {

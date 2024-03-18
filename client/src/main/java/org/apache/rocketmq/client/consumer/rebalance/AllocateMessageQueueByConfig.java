@@ -17,9 +17,10 @@
 package org.apache.rocketmq.client.consumer.rebalance;
 
 import java.util.List;
+import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
 import org.apache.rocketmq.common.message.MessageQueue;
 
-public class AllocateMessageQueueByConfig extends AbstractAllocateMessageQueueStrategy {
+public class AllocateMessageQueueByConfig implements AllocateMessageQueueStrategy {
     private List<MessageQueue> messageQueueList;
 
     @Override

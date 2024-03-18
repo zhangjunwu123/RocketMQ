@@ -75,35 +75,23 @@ public interface SelectorParserConstants {
     /**
      * RegularExpression Id.
      */
-    int CONTAINS = 17;
+    int DECIMAL_LITERAL = 17;
     /**
      * RegularExpression Id.
      */
-    int STARTSWITH = 18;
+    int FLOATING_POINT_LITERAL = 18;
     /**
      * RegularExpression Id.
      */
-    int ENDSWITH = 19;
+    int EXPONENT = 19;
     /**
      * RegularExpression Id.
      */
-    int DECIMAL_LITERAL = 20;
+    int STRING_LITERAL = 20;
     /**
      * RegularExpression Id.
      */
-    int FLOATING_POINT_LITERAL = 21;
-    /**
-     * RegularExpression Id.
-     */
-    int EXPONENT = 22;
-    /**
-     * RegularExpression Id.
-     */
-    int STRING_LITERAL = 23;
-    /**
-     * RegularExpression Id.
-     */
-    int ID = 24;
+    int ID = 21;
 
     /**
      * Lexical state.
@@ -131,9 +119,6 @@ public interface SelectorParserConstants {
         "\"FALSE\"",
         "\"NULL\"",
         "\"IS\"",
-        "\"CONTAINS\"",
-        "\"STARTSWITH\"",
-        "\"ENDSWITH\"",
         "<DECIMAL_LITERAL>",
         "<FLOATING_POINT_LITERAL>",
         "<EXPONENT>",

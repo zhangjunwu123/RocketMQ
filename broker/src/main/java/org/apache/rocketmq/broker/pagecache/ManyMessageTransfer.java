@@ -54,11 +54,6 @@ public class ManyMessageTransfer extends AbstractReferenceCounted implements Fil
     }
 
     @Override
-    public long transferred() {
-        return transferred;
-    }
-
-    @Override
     public long count() {
         return byteBufferHeader.limit() + this.getMessageResult.getBufferTotalSize();
     }
@@ -79,28 +74,6 @@ public class ManyMessageTransfer extends AbstractReferenceCounted implements Fil
         }
 
         return 0;
-    }
-
-    @Override
-    public FileRegion retain() {
-        super.retain();
-        return this;
-    }
-
-    @Override
-    public FileRegion retain(int increment) {
-        super.retain(increment);
-        return this;
-    }
-
-    @Override
-    public FileRegion touch() {
-        return this;
-    }
-
-    @Override
-    public FileRegion touch(Object hint) {
-        return this;
     }
 
     public void close() {

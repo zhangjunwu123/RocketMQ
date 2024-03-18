@@ -16,16 +16,14 @@
  */
 package org.apache.rocketmq.remoting.common;
 
-
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for background thread
  */
 public abstract class ServiceThread implements Runnable {
-    private static final Logger log = LoggerFactory.getLogger(LoggerName.ROCKETMQ_REMOTING_NAME);
+    private static final Logger log = LoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
     private static final long JOIN_TIME = 90 * 1000;
     protected final Thread thread;
@@ -63,8 +61,8 @@ public abstract class ServiceThread implements Runnable {
 
             long beginTime = System.currentTimeMillis();
             this.thread.join(this.getJointime());
-            long elapsedTime = System.currentTimeMillis() - beginTime;
-            log.info("join thread " + this.getServiceName() + " elapsed time(ms) " + elapsedTime + " "
+            long eclipseTime = System.currentTimeMillis() - beginTime;
+            log.info("join thread " + this.getServiceName() + " eclipse time(ms) " + eclipseTime + " "
                 + this.getJointime());
         } catch (InterruptedException e) {
             log.error("Interrupted", e);

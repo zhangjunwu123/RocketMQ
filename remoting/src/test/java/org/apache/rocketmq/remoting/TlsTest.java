@@ -17,11 +17,14 @@
 
 package org.apache.rocketmq.remoting;
 
-import org.apache.rocketmq.common.utils.NetworkUtil;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import org.apache.rocketmq.remoting.common.TlsMode;
 import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
-import org.apache.rocketmq.remoting.netty.NettyRemotingServer;
 import org.apache.rocketmq.remoting.netty.TlsHelper;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
@@ -33,20 +36,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.time.Duration;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.TLS_CLIENT_AUTHSERVER;
 import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.TLS_CLIENT_CERTPATH;
@@ -75,8 +64,7 @@ import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.tlsServerTrustC
 import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.tlsTestModeEnable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
-import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TlsTest {
@@ -144,24 +132,12 @@ public class TlsTest {
             tlsClientKeyPath = "";
             tlsClientCertPath = "";
             clientConfig.setUseTLS(false);
-        } else if ("disabledServerRejectsSSLClient".equals(name.getMethodName())) {
+        } else if ("serverRejectsSSLClient".equals(name.getMethodName())) {
             tlsMode = TlsMode.DISABLED;
-        } else if ("disabledServerAcceptUnAuthClient".equals(name.getMethodName())) {
-            tlsMode = TlsMode.DISABLED;
-            tlsClientKeyPath = "";
-            tlsClientCertPath = "";
-            clientConfig.setUseTLS(false);
-        } else if ("reloadSslContextForServer".equals(name.getMethodName())) {
-            tlsClientAuthServer = false;
-            tlsServerNeedClientAuth = "none";
         }
 
         remotingServer = RemotingServerTest.createRemotingServer();
         remotingClient = RemotingServerTest.createRemotingClient(clientConfig);
-
-        await().pollDelay(Duration.ofMillis(10))
-                .pollInterval(Duration.ofMillis(10))
-                .atMost(20, TimeUnit.SECONDS).until(() -> isHostConnectable(getServerAddress()));
     }
 
     @After
@@ -181,26 +157,6 @@ public class TlsTest {
     }
 
     @Test
-    public void reloadSslContextForServer() throws Exception {
-        requestThenAssertResponse();
-
-        //Use new cert and private key
-        tlsClientKeyPath = getCertsPath("badClient.key");
-        tlsClientCertPath = getCertsPath("badClient.pem");
-
-        ((NettyRemotingServer) remotingServer).loadSslContext();
-
-        //Request Again
-        requestThenAssertResponse();
-
-        //Start another client
-        NettyClientConfig clientConfig = new NettyClientConfig();
-        clientConfig.setUseTLS(true);
-        RemotingClient remotingClient = RemotingServerTest.createRemotingClient(clientConfig);
-        requestThenAssertResponse(remotingClient);
-    }
-
-    @Test
     public void serverNotNeedClientAuth() throws Exception {
         requestThenAssertResponse();
     }
@@ -216,17 +172,12 @@ public class TlsTest {
     }
 
     @Test
-    public void disabledServerRejectsSSLClient() throws Exception {
+    public void serverRejectsSSLClient() throws Exception {
         try {
-            RemotingCommand response = remotingClient.invokeSync(getServerAddress(), createRequest(), 1000 * 5);
+            RemotingCommand response = remotingClient.invokeSync("localhost:8888", createRequest(), 1000 * 5);
             failBecauseExceptionWasNotThrown(RemotingSendRequestException.class);
         } catch (RemotingSendRequestException ignore) {
         }
-    }
-
-    @Test
-    public void disabledServerAcceptUnAuthClient() throws Exception {
-        requestThenAssertResponse();
     }
 
     /**
@@ -236,7 +187,7 @@ public class TlsTest {
     @Test
     public void serverRejectsUntrustedClientCert() throws Exception {
         try {
-            RemotingCommand response = remotingClient.invokeSync(getServerAddress(), createRequest(), 1000 * 5);
+            RemotingCommand response = remotingClient.invokeSync("localhost:8888", createRequest(), 1000 * 5);
             failBecauseExceptionWasNotThrown(RemotingSendRequestException.class);
         } catch (RemotingSendRequestException ignore) {
         }
@@ -245,7 +196,6 @@ public class TlsTest {
     @Test
     public void serverAcceptsUntrustedClientCert() throws Exception {
         requestThenAssertResponse();
-//        Thread.sleep(1000000L);
     }
 
     /**
@@ -255,7 +205,7 @@ public class TlsTest {
     @Test
     public void noClientAuthFailure() throws Exception {
         try {
-            RemotingCommand response = remotingClient.invokeSync(getServerAddress(), createRequest(), 1000 * 3);
+            RemotingCommand response = remotingClient.invokeSync("localhost:8888", createRequest(), 1000 * 3);
             failBecauseExceptionWasNotThrown(RemotingSendRequestException.class);
         } catch (RemotingSendRequestException ignore) {
         }
@@ -268,7 +218,7 @@ public class TlsTest {
     @Test
     public void clientRejectsUntrustedServerCert() throws Exception {
         try {
-            RemotingCommand response = remotingClient.invokeSync(getServerAddress(), createRequest(), 1000 * 3);
+            RemotingCommand response = remotingClient.invokeSync("localhost:8888", createRequest(), 1000 * 3);
             failBecauseExceptionWasNotThrown(RemotingSendRequestException.class);
         } catch (RemotingSendRequestException ignore) {
         }
@@ -327,35 +277,8 @@ public class TlsTest {
     }
 
     private static String getCertsPath(String fileName) {
-        ClassLoader loader = TlsTest.class.getClassLoader();
-        InputStream stream = loader.getResourceAsStream("certs/" + fileName);
-        if (null == stream) {
-            throw new RuntimeException("File: " + fileName + " is not found");
-        }
-
-        try {
-            String[] segments = fileName.split("\\.");
-            File f = File.createTempFile(UUID.randomUUID().toString(), segments[1]);
-            f.deleteOnExit();
-
-            try (BufferedInputStream bis = new BufferedInputStream(stream);
-                 BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(f))) {
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = bis.read(buffer)) > 0) {
-                    bos.write(buffer, 0, len);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            return f.getAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private String getServerAddress() {
-        return "localhost:" + remotingServer.localListenPort();
+        File resourcesDirectory = new File("src/test/resources/certs");
+        return resourcesDirectory.getAbsolutePath() + "/" + fileName;
     }
 
     private static RemotingCommand createRequest() {
@@ -366,23 +289,10 @@ public class TlsTest {
     }
 
     private void requestThenAssertResponse() throws Exception {
-        requestThenAssertResponse(remotingClient);
-    }
-
-    private void requestThenAssertResponse(RemotingClient remotingClient) throws Exception {
-        RemotingCommand response = remotingClient.invokeSync(getServerAddress(), createRequest(), 1000 * 3);
-        assertNotNull(response);
+        RemotingCommand response = remotingClient.invokeSync("localhost:8888", createRequest(), 1000 * 3);
+        assertTrue(response != null);
         assertThat(response.getLanguage()).isEqualTo(LanguageCode.JAVA);
         assertThat(response.getExtFields()).hasSize(2);
         assertThat(response.getExtFields().get("messageTitle")).isEqualTo("Welcome");
-    }
-
-    private boolean isHostConnectable(String addr) {
-        try (Socket socket = new Socket()) {
-            socket.connect(NetworkUtil.string2SocketAddress(addr));
-            return true;
-        } catch (IOException ignored) {
-        }
-        return false;
     }
 }

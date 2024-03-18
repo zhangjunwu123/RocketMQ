@@ -18,10 +18,9 @@
 package org.apache.rocketmq.test.client.consumer.broadcast.order;
 
 import java.util.List;
+import org.apache.log4j.Logger;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
-import org.apache.rocketmq.test.client.consumer.broadcast.BaseBroadcast;
+import org.apache.rocketmq.test.client.consumer.broadcast.BaseBroadCastIT;
 import org.apache.rocketmq.test.client.rmq.RMQBroadCastConsumer;
 import org.apache.rocketmq.test.client.rmq.RMQNormalProducer;
 import org.apache.rocketmq.test.listener.rmq.order.RMQOrderListener;
@@ -30,17 +29,12 @@ import org.apache.rocketmq.test.util.TestUtils;
 import org.apache.rocketmq.test.util.VerifyUtils;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.google.common.truth.Truth.assertThat;
 
-/**
- * Currently, dose not support the ordered broadcast message
- */
-@Ignore
-public class OrderMsgBroadcastIT extends BaseBroadcast {
-    private static Logger logger = LoggerFactory.getLogger(OrderMsgBroadcastIT.class);
+public class OrderMsgBroadCastIT extends BaseBroadCastIT {
+    private static Logger logger = Logger.getLogger(OrderMsgBroadCastIT.class);
     private RMQNormalProducer producer = null;
     private String topic = null;
 
@@ -50,7 +44,7 @@ public class OrderMsgBroadcastIT extends BaseBroadcast {
     public void setUp() {
         topic = initTopic();
         logger.info(String.format("use topic: %s;", topic));
-        producer = getProducer(NAMESRV_ADDR, topic);
+        producer = getProducer(nsAddr, topic);
     }
 
     @After
@@ -62,11 +56,11 @@ public class OrderMsgBroadcastIT extends BaseBroadcast {
     public void testTwoConsumerSubTag() {
         int msgSize = 10;
 
-        RMQBroadCastConsumer consumer1 = getBroadCastConsumer(NAMESRV_ADDR, topic, "*",
+        RMQBroadCastConsumer consumer1 = getBroadCastConsumer(nsAddr, topic, "*",
             new RMQOrderListener());
-        RMQBroadCastConsumer consumer2 = getBroadCastConsumer(NAMESRV_ADDR,
+        RMQBroadCastConsumer consumer2 = getBroadCastConsumer(nsAddr,
             consumer1.getConsumerGroup(), topic, "*", new RMQOrderListener());
-        TestUtils.waitForSeconds(WAIT_TIME);
+        TestUtils.waitForSeconds(waitTime);
 
         List<MessageQueue> mqs = producer.getMessageQueue();
         MessageQueueMsg mqMsgs = new MessageQueueMsg(mqs, msgSize);

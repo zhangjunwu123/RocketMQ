@@ -37,7 +37,7 @@ public class MessageExceptionIT extends BaseConf {
 
     @Before
     public void setUp() {
-        producer = ProducerFactory.getRMQProducer(NAMESRV_ADDR);
+        producer = ProducerFactory.getRMQProducer(nsAddr);
         topic = initTopic();
     }
 
@@ -59,7 +59,7 @@ public class MessageExceptionIT extends BaseConf {
         assertThat(sendResult.getSendStatus()).isEqualTo(SendStatus.SEND_OK);
     }
 
-    @Test(expected = java.lang.NullPointerException.class)
+    @Test(expected = org.apache.rocketmq.client.exception.MQClientException.class)
     public void testSynSendNullMessage() throws Exception {
         producer.send((Message) null);
     }

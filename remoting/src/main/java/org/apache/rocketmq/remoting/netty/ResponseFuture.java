@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.remoting.netty;
 
-import io.netty.channel.Channel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,9 +24,7 @@ import org.apache.rocketmq.remoting.common.SemaphoreReleaseOnlyOnce;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 public class ResponseFuture {
-    private final Channel channel;
     private final int opaque;
-    private final RemotingCommand request;
     private final long timeoutMillis;
     private final InvokeCallback invokeCallback;
     private final long beginTimestamp = System.currentTimeMillis();
@@ -39,18 +36,10 @@ public class ResponseFuture {
     private volatile RemotingCommand responseCommand;
     private volatile boolean sendRequestOK = true;
     private volatile Throwable cause;
-    private volatile boolean interrupted = false;
 
-    public ResponseFuture(Channel channel, int opaque, long timeoutMillis, InvokeCallback invokeCallback,
-                          SemaphoreReleaseOnlyOnce once) {
-        this(channel, opaque, null, timeoutMillis, invokeCallback, once);
-    }
-
-    public ResponseFuture(Channel channel, int opaque, RemotingCommand request, long timeoutMillis, InvokeCallback invokeCallback,
-                          SemaphoreReleaseOnlyOnce once) {
-        this.channel = channel;
+    public ResponseFuture(int opaque, long timeoutMillis, InvokeCallback invokeCallback,
+        SemaphoreReleaseOnlyOnce once) {
         this.opaque = opaque;
-        this.request = request;
         this.timeoutMillis = timeoutMillis;
         this.invokeCallback = invokeCallback;
         this.once = once;
@@ -62,11 +51,6 @@ public class ResponseFuture {
                 invokeCallback.operationComplete(this);
             }
         }
-    }
-
-    public void interrupt() {
-        interrupted = true;
-        executeInvokeCallback();
     }
 
     public void release() {
@@ -128,18 +112,6 @@ public class ResponseFuture {
 
     public int getOpaque() {
         return opaque;
-    }
-
-    public RemotingCommand getRequestCommand() {
-        return request;
-    }
-
-    public Channel getChannel() {
-        return channel;
-    }
-
-    public boolean isInterrupted() {
-        return interrupted;
     }
 
     @Override

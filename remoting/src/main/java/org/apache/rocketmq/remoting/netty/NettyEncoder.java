@@ -17,24 +17,24 @@
 package org.apache.rocketmq.remoting.netty;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
+import java.nio.ByteBuffer;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
+import org.apache.rocketmq.remoting.common.RemotingUtil;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@ChannelHandler.Sharable
 public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
-    private static final Logger log = LoggerFactory.getLogger(LoggerName.ROCKETMQ_REMOTING_NAME);
+    private static final Logger log = LoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
     @Override
     public void encode(ChannelHandlerContext ctx, RemotingCommand remotingCommand, ByteBuf out)
         throws Exception {
         try {
-            remotingCommand.fastEncodeHeader(out);
+            ByteBuffer header = remotingCommand.encodeHeader();
+            out.writeBytes(header);
             byte[] body = remotingCommand.getBody();
             if (body != null) {
                 out.writeBytes(body);
@@ -44,7 +44,7 @@ public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
             if (remotingCommand != null) {
                 log.error(remotingCommand.toString());
             }
-            RemotingHelper.closeChannel(ctx.channel());
+            RemotingUtil.closeChannel(ctx.channel());
         }
     }
 }

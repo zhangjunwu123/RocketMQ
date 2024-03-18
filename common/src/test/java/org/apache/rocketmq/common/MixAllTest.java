@@ -17,13 +17,14 @@
 
 package org.apache.rocketmq.common;
 
+import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,7 +34,7 @@ public class MixAllTest {
         List<String> localInetAddress = MixAll.getLocalInetAddress();
         String local = InetAddress.getLocalHost().getHostAddress();
         assertThat(localInetAddress).contains("127.0.0.1");
-        assertThat(local).isNotNull();
+        assertThat(localInetAddress).contains(local);
     }
 
     @Test
@@ -68,6 +69,22 @@ public class MixAllTest {
     }
 
     @Test
+    public void testFile2String_WithChinese() throws IOException {
+        String fileName = System.getProperty("java.io.tmpdir") + File.separator + "MixAllTest" + System.currentTimeMillis();
+        File file = new File(fileName);
+        if (file.exists()) {
+            file.delete();
+        }
+        file.createNewFile();
+        PrintWriter out = new PrintWriter(fileName);
+        out.write("TestForMixAll_中文");
+        out.close();
+        String string = MixAll.file2String(fileName);
+        assertThat(string).isEqualTo("TestForMixAll_中文");
+        file.delete();
+    }
+
+    @Test
     public void testString2File() throws IOException {
         String fileName = System.getProperty("java.io.tmpdir") + File.separator + "MixAllTest" + System.currentTimeMillis();
         MixAll.string2File("MixAll_testString2File", fileName);
@@ -78,17 +95,5 @@ public class MixAllTest {
     public void testGetLocalhostByNetworkInterface() throws Exception {
         assertThat(MixAll.LOCALHOST).isNotNull();
         assertThat(MixAll.getLocalhostByNetworkInterface()).isNotNull();
-    }
-
-    @Test
-    public void testIsLmq() {
-        String testLmq = null;
-        assertThat(MixAll.isLmq(testLmq)).isFalse();
-        testLmq = "lmq";
-        assertThat(MixAll.isLmq(testLmq)).isFalse();
-        testLmq = "%LMQ%queue123";
-        assertThat(MixAll.isLmq(testLmq)).isTrue();
-        testLmq = "%LMQ%GID_TEST";
-        assertThat(MixAll.isLmq(testLmq)).isTrue();
     }
 }

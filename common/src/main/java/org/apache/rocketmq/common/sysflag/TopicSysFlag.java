@@ -59,4 +59,7 @@ public class TopicSysFlag {
     public static boolean hasUnitSubFlag(final int sysFlag) {
         return (sysFlag & FLAG_UNIT_SUB) == FLAG_UNIT_SUB;
     }
+
+    public static void main(String[] args) {
+    }
 }

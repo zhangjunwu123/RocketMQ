@@ -17,13 +17,9 @@
 
 package org.apache.rocketmq.test.factory;
 
-import java.util.UUID;
-import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
 import org.apache.rocketmq.client.consumer.MessageSelector;
 import org.apache.rocketmq.test.client.rmq.RMQBroadCastConsumer;
 import org.apache.rocketmq.test.client.rmq.RMQNormalConsumer;
-import org.apache.rocketmq.test.client.rmq.RMQPopClient;
-import org.apache.rocketmq.test.client.rmq.RMQPopConsumer;
 import org.apache.rocketmq.test.client.rmq.RMQSqlConsumer;
 import org.apache.rocketmq.test.listener.AbstractListener;
 
@@ -63,29 +59,5 @@ public class ConsumerFactory {
         consumer.create();
         consumer.start();
         return consumer;
-    }
-
-    public static RMQPopConsumer getRMQPopConsumer(String nsAddr, String consumerGroup,
-        String topic, String subExpression, AbstractListener listener) {
-
-        RMQPopConsumer consumer = new RMQPopConsumer(nsAddr, topic, subExpression, consumerGroup, listener);
-        consumer.create();
-        consumer.start();
-        return consumer;
-    }
-
-    public static RMQPopClient getRMQPopClient() {
-        RMQPopClient client = new RMQPopClient();
-        client.create();
-        client.start();
-        return client;
-    }
-
-    public static DefaultMQPullConsumer getRMQPullConsumer(String nsAddr, String consumerGroup) throws Exception {
-        DefaultMQPullConsumer defaultMQPullConsumer = new DefaultMQPullConsumer(consumerGroup);
-        defaultMQPullConsumer.setInstanceName(UUID.randomUUID().toString());
-        defaultMQPullConsumer.setNamesrvAddr(nsAddr);
-        defaultMQPullConsumer.start();
-        return defaultMQPullConsumer;
     }
 }

@@ -19,8 +19,6 @@
 /* JavaCCOptions:STATIC=false,SUPPORT_CLASS_VISIBILITY_PUBLIC=true */
 package org.apache.rocketmq.filter.parser;
 
-import java.nio.charset.StandardCharsets;
-
 /**
  * An implementation of interface CharStream, where the stream is assumed to
  * contain only ASCII characters (without unicode processing).
@@ -38,8 +36,8 @@ public class SimpleCharStream {
      * Position in buffer.
      */
     public int bufpos = -1;
-    protected int[] bufline;
-    protected int[] bufcolumn;
+    protected int bufline[];
+    protected int bufcolumn[];
 
     protected int column = 0;
     protected int line = 1;
@@ -64,8 +62,8 @@ public class SimpleCharStream {
 
     protected void ExpandBuff(boolean wrapAround) {
         char[] newbuffer = new char[bufsize + 2048];
-        int[] newbufline = new int[bufsize + 2048];
-        int[] newbufcolumn = new int[bufsize + 2048];
+        int newbufline[] = new int[bufsize + 2048];
+        int newbufcolumn[] = new int[bufsize + 2048];
 
         try {
             if (wrapAround) {
@@ -333,7 +331,7 @@ public class SimpleCharStream {
     public SimpleCharStream(java.io.InputStream dstream, String encoding, int startline,
         int startcolumn, int buffersize) throws java.io.UnsupportedEncodingException {
         this(encoding == null ?
-            new java.io.InputStreamReader(dstream, StandardCharsets.UTF_8) :
+            new java.io.InputStreamReader(dstream) :
             new java.io.InputStreamReader(dstream, encoding), startline, startcolumn, buffersize);
     }
 
@@ -342,7 +340,7 @@ public class SimpleCharStream {
      */
     public SimpleCharStream(java.io.InputStream dstream, int startline,
         int startcolumn, int buffersize) {
-        this(new java.io.InputStreamReader(dstream, StandardCharsets.UTF_8), startline, startcolumn, buffersize);
+        this(new java.io.InputStreamReader(dstream), startline, startcolumn, buffersize);
     }
 
     /**
@@ -381,7 +379,7 @@ public class SimpleCharStream {
     public void ReInit(java.io.InputStream dstream, String encoding, int startline,
         int startcolumn, int buffersize) throws java.io.UnsupportedEncodingException {
         ReInit(encoding == null ?
-            new java.io.InputStreamReader(dstream, StandardCharsets.UTF_8) :
+            new java.io.InputStreamReader(dstream) :
             new java.io.InputStreamReader(dstream, encoding), startline, startcolumn, buffersize);
     }
 
@@ -390,7 +388,7 @@ public class SimpleCharStream {
      */
     public void ReInit(java.io.InputStream dstream, int startline,
         int startcolumn, int buffersize) {
-        ReInit(new java.io.InputStreamReader(dstream, StandardCharsets.UTF_8), startline, startcolumn, buffersize);
+        ReInit(new java.io.InputStreamReader(dstream), startline, startcolumn, buffersize);
     }
 
     /**
@@ -501,4 +499,4 @@ public class SimpleCharStream {
     }
 
 }
-/* JavaCC - OriginalChecksum=ea3493f692d4975c1ad70c4a750107d3 (do not edit this line) */
+/* JavaCC - OriginalChecksum=af79bfe4b18b4b4ea9720ffeb7e52fc5 (do not edit this line) */

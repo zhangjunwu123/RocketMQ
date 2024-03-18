@@ -24,11 +24,11 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
+import org.slf4j.Logger;
 
 public class MomentStatsItemSet {
     private final ConcurrentMap<String/* key */, MomentStatsItem> statsItemTable =
-        new ConcurrentHashMap<>(128);
+        new ConcurrentHashMap<String, MomentStatsItem>(128);
     private final String statsName;
     private final ScheduledExecutorService scheduledExecutorService;
     private final Logger log;
@@ -58,7 +58,7 @@ public class MomentStatsItemSet {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computeNextMinutesTimeMillis() - System.currentTimeMillis()), 1000 * 60 * 5, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computNextMinutesTimeMillis() - System.currentTimeMillis()), 1000 * 60 * 5, TimeUnit.MILLISECONDS);
     }
 
     private void printAtMinutes() {
@@ -74,35 +74,15 @@ public class MomentStatsItemSet {
         statsItem.getValue().set(value);
     }
 
-    public void delValueByInfixKey(final String statsKey, String separator) {
-        Iterator<Entry<String, MomentStatsItem>> it = this.statsItemTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, MomentStatsItem> next = it.next();
-            if (next.getKey().contains(separator + statsKey + separator)) {
-                it.remove();
-            }
-        }
-    }
-
-    public void delValueBySuffixKey(final String statsKey, String separator) {
-        Iterator<Entry<String, MomentStatsItem>> it = this.statsItemTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, MomentStatsItem> next = it.next();
-            if (next.getKey().endsWith(separator + statsKey)) {
-                it.remove();
-            }
-        }
-    }
-
     public MomentStatsItem getAndCreateStatsItem(final String statsKey) {
         MomentStatsItem statsItem = this.statsItemTable.get(statsKey);
         if (null == statsItem) {
             statsItem =
                 new MomentStatsItem(this.statsName, statsKey, this.scheduledExecutorService, this.log);
-            MomentStatsItem prev = this.statsItemTable.putIfAbsent(statsKey, statsItem);
+            MomentStatsItem prev = this.statsItemTable.put(statsKey, statsItem);
 
-            if (null != prev) {
-                statsItem = prev;
+            if (null == prev) {
+
                 // statsItem.init();
             }
         }

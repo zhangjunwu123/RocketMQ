@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * Add reset feature for @see java.util.concurrent.CountDownLatch
+ * Add reset feature for @see java.util.concurrent.CountDownLatch2
  */
 public class CountDownLatch2 {
     private final Sync sync;
@@ -172,12 +172,10 @@ public class CountDownLatch2 {
             return getState();
         }
 
-        @Override
         protected int tryAcquireShared(int acquires) {
             return (getState() == 0) ? 1 : -1;
         }
 
-        @Override
         protected boolean tryReleaseShared(int releases) {
             // Decrement count; signal when transition to zero
             for (; ; ) {

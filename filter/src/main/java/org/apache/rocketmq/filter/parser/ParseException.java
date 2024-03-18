@@ -106,7 +106,7 @@ public class ParseException extends Exception {
         int[][] expectedTokenSequences,
         String[] tokenImage) {
         String eol = System.getProperty("line.separator", "\n");
-        StringBuilder expected = new StringBuilder();
+        StringBuffer expected = new StringBuffer();
         int maxSize = 0;
         for (int i = 0; i < expectedTokenSequences.length; i++) {
             if (maxSize < expectedTokenSequences[i].length) {
@@ -123,9 +123,8 @@ public class ParseException extends Exception {
         String retval = "Encountered \"";
         Token tok = currentToken.next;
         for (int i = 0; i < maxSize; i++) {
-            if (i != 0) {
+            if (i != 0)
                 retval += " ";
-            }
             if (tok.kind == 0) {
                 retval += tokenImage[0];
                 break;
@@ -158,7 +157,7 @@ public class ParseException extends Exception {
      * string literal.
      */
     static String add_escapes(String str) {
-        StringBuilder retval = new StringBuilder();
+        StringBuffer retval = new StringBuffer();
         char ch;
         for (int i = 0; i < str.length(); i++) {
             switch (str.charAt(i)) {
@@ -202,4 +201,4 @@ public class ParseException extends Exception {
     }
 
 }
-/* JavaCC - OriginalChecksum=60cf9c227a487e4be49599bc903f0a6a (do not edit this line) */
+/* JavaCC - OriginalChecksum=4c829b0daa2c9af00ddafe2441eb9097 (do not edit this line) */

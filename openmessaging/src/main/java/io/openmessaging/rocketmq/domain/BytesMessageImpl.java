@@ -20,26 +20,21 @@ import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.OMS;
-import io.openmessaging.exception.OMSMessageFormatException;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class BytesMessageImpl implements BytesMessage {
-    private KeyValue sysHeaders;
-    private KeyValue userHeaders;
+    private KeyValue headers;
+    private KeyValue properties;
     private byte[] body;
 
     public BytesMessageImpl() {
-        this.sysHeaders = OMS.newKeyValue();
-        this.userHeaders = OMS.newKeyValue();
+        this.headers = OMS.newKeyValue();
+        this.properties = OMS.newKeyValue();
     }
 
     @Override
-    public <T> T getBody(Class<T> type) throws OMSMessageFormatException {
-        if (type == byte[].class) {
-            return (T)body;
-        }
-
-        throw new OMSMessageFormatException("", "Cannot assign byte[] to " + type.getName());
+    public byte[] getBody() {
+        return body;
     }
 
     @Override
@@ -49,60 +44,60 @@ public class BytesMessageImpl implements BytesMessage {
     }
 
     @Override
-    public KeyValue sysHeaders() {
-        return sysHeaders;
+    public KeyValue headers() {
+        return headers;
     }
 
     @Override
-    public KeyValue userHeaders() {
-        return userHeaders;
+    public KeyValue properties() {
+        return properties;
     }
 
     @Override
-    public Message putSysHeaders(String key, int value) {
-        sysHeaders.put(key, value);
+    public Message putHeaders(final String key, final int value) {
+        headers.put(key, value);
         return this;
     }
 
     @Override
-    public Message putSysHeaders(String key, long value) {
-        sysHeaders.put(key, value);
+    public Message putHeaders(final String key, final long value) {
+        headers.put(key, value);
         return this;
     }
 
     @Override
-    public Message putSysHeaders(String key, double value) {
-        sysHeaders.put(key, value);
+    public Message putHeaders(final String key, final double value) {
+        headers.put(key, value);
         return this;
     }
 
     @Override
-    public Message putSysHeaders(String key, String value) {
-        sysHeaders.put(key, value);
+    public Message putHeaders(final String key, final String value) {
+        headers.put(key, value);
         return this;
     }
 
     @Override
-    public Message putUserHeaders(String key, int value) {
-        userHeaders.put(key, value);
+    public Message putProperties(final String key, final int value) {
+        properties.put(key, value);
         return this;
     }
 
     @Override
-    public Message putUserHeaders(String key, long value) {
-        userHeaders.put(key, value);
+    public Message putProperties(final String key, final long value) {
+        properties.put(key, value);
         return this;
     }
 
     @Override
-    public Message putUserHeaders(String key, double value) {
-        userHeaders.put(key, value);
+    public Message putProperties(final String key, final double value) {
+        properties.put(key, value);
         return this;
     }
 
     @Override
-    public Message putUserHeaders(String key, String value) {
-        userHeaders.put(key, value);
+    public Message putProperties(final String key, final String value) {
+        properties.put(key, value);
         return this;
     }
 

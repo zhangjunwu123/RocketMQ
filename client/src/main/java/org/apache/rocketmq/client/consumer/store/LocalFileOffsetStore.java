@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -28,13 +27,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
+import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.help.FAQUrl;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  * Local storage implementation
@@ -43,12 +42,12 @@ public class LocalFileOffsetStore implements OffsetStore {
     public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
         "rocketmq.client.localOffsetStoreDir",
         System.getProperty("user.home") + File.separator + ".rocketmq_offsets");
-    private final static Logger log = LoggerFactory.getLogger(LocalFileOffsetStore.class);
+    private final static Logger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
     private final String groupName;
     private final String storePath;
     private ConcurrentMap<MessageQueue, AtomicLong> offsetTable =
-        new ConcurrentHashMap<>();
+        new ConcurrentHashMap<MessageQueue, AtomicLong>();
 
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
         this.mQClientFactory = mQClientFactory;
@@ -65,12 +64,12 @@ public class LocalFileOffsetStore implements OffsetStore {
         if (offsetSerializeWrapper != null && offsetSerializeWrapper.getOffsetTable() != null) {
             offsetTable.putAll(offsetSerializeWrapper.getOffsetTable());
 
-            for (Entry<MessageQueue, AtomicLong> mqEntry : offsetSerializeWrapper.getOffsetTable().entrySet()) {
-                AtomicLong offset = mqEntry.getValue();
+            for (MessageQueue mq : offsetSerializeWrapper.getOffsetTable().keySet()) {
+                AtomicLong offset = offsetSerializeWrapper.getOffsetTable().get(mq);
                 log.info("load consumer's offset, {} {} {}",
-                        this.groupName,
-                        mqEntry.getKey(),
-                        offset.get());
+                    this.groupName,
+                    mq,
+                    offset.get());
             }
         }
     }
@@ -169,7 +168,7 @@ public class LocalFileOffsetStore implements OffsetStore {
 
     @Override
     public Map<MessageQueue, Long> cloneOffsetTable(String topic) {
-        Map<MessageQueue, Long> cloneOffsetTable = new HashMap<>(this.offsetTable.size(), 1);
+        Map<MessageQueue, Long> cloneOffsetTable = new HashMap<MessageQueue, Long>();
         for (Map.Entry<MessageQueue, AtomicLong> entry : this.offsetTable.entrySet()) {
             MessageQueue mq = entry.getKey();
             if (!UtilAll.isBlank(topic) && !topic.equals(mq.getTopic())) {

@@ -18,7 +18,6 @@ package org.apache.rocketmq.broker.client;
 
 import io.netty.channel.Channel;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -27,19 +26,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
-import org.apache.rocketmq.remoting.protocol.heartbeat.ConsumeType;
-import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
-import org.apache.rocketmq.remoting.protocol.heartbeat.SubscriptionData;
+import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
+import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
+import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConsumerGroupInfo {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final String groupName;
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable =
-        new ConcurrentHashMap<>();
+        new ConcurrentHashMap<String, SubscriptionData>();
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
-        new ConcurrentHashMap<>(16);
+        new ConcurrentHashMap<Channel, ClientChannelInfo>(16);
     private volatile ConsumeType consumeType;
     private volatile MessageModel messageModel;
     private volatile ConsumeFromWhere consumeFromWhere;
@@ -51,10 +50,6 @@ public class ConsumerGroupInfo {
         this.consumeType = consumeType;
         this.messageModel = messageModel;
         this.consumeFromWhere = consumeFromWhere;
-    }
-
-    public ConsumerGroupInfo(String groupName) {
-        this.groupName = groupName;
     }
 
     public ClientChannelInfo findChannel(final String clientId) {
@@ -71,10 +66,6 @@ public class ConsumerGroupInfo {
 
     public ConcurrentMap<String, SubscriptionData> getSubscriptionTable() {
         return subscriptionTable;
-    }
-
-    public ClientChannelInfo findChannel(final Channel channel) {
-        return this.channelInfoTable.get(channel);
     }
 
     public ConcurrentMap<Channel, ClientChannelInfo> getChannelInfoTable() {
@@ -103,35 +94,25 @@ public class ConsumerGroupInfo {
         return result;
     }
 
-    public boolean unregisterChannel(final ClientChannelInfo clientChannelInfo) {
+    public void unregisterChannel(final ClientChannelInfo clientChannelInfo) {
         ClientChannelInfo old = this.channelInfoTable.remove(clientChannelInfo.getChannel());
         if (old != null) {
             log.info("unregister a consumer[{}] from consumerGroupInfo {}", this.groupName, old.toString());
-            return true;
         }
-        return false;
     }
 
-    public ClientChannelInfo doChannelCloseEvent(final String remoteAddr, final Channel channel) {
+    public boolean doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         final ClientChannelInfo info = this.channelInfoTable.remove(channel);
         if (info != null) {
             log.warn(
                 "NETTY EVENT: remove not active channel[{}] from ConsumerGroupInfo groupChannelTable, consumer group: {}",
                 info.toString(), groupName);
+            return true;
         }
 
-        return info;
+        return false;
     }
 
-    /**
-     * Update {@link #channelInfoTable} in {@link ConsumerGroupInfo}
-     *
-     * @param infoNew Channel info of new client.
-     * @param consumeType consume type of new client.
-     * @param messageModel message consuming model (CLUSTERING/BROADCASTING) of new client.
-     * @param consumeFromWhere indicate the position when the client consume message firstly.
-     * @return the result that if new connector is connected or not.
-     */
     public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType,
         MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
         boolean updated = false;
@@ -151,9 +132,9 @@ public class ConsumerGroupInfo {
             infoOld = infoNew;
         } else {
             if (!infoOld.getClientId().equals(infoNew.getClientId())) {
-                log.error(
-                    "ConsumerGroupInfo: consumer channel exists in broker, but clientId is not the same one, "
-                        + "group={}, old clientChannelInfo={}, new clientChannelInfo={}", groupName, infoOld.toString(),
+                log.error("[BUG] consumer channel exist in broker, but clientId not equal. GROUP: {} OLD: {} NEW: {} ",
+                    this.groupName,
+                    infoOld.toString(),
                     infoNew.toString());
                 this.channelInfoTable.put(infoNew.getChannel(), infoNew);
             }
@@ -165,15 +146,9 @@ public class ConsumerGroupInfo {
         return updated;
     }
 
-    /**
-     * Update subscription.
-     *
-     * @param subList set of {@link SubscriptionData}
-     * @return the boolean indicates the subscription has changed or not.
-     */
     public boolean updateSubscription(final Set<SubscriptionData> subList) {
         boolean updated = false;
-        Set<String> topicSet = new HashSet<>();
+
         for (SubscriptionData sub : subList) {
             SubscriptionData old = this.subscriptionTable.get(sub.getTopic());
             if (old == null) {
@@ -195,16 +170,22 @@ public class ConsumerGroupInfo {
 
                 this.subscriptionTable.put(sub.getTopic(), sub);
             }
-            // Add all new topics to the HashSet
-            topicSet.add(sub.getTopic());
         }
 
         Iterator<Entry<String, SubscriptionData>> it = this.subscriptionTable.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, SubscriptionData> next = it.next();
             String oldTopic = next.getKey();
-            // Check HashSet with O(1) time complexity
-            if (!topicSet.contains(oldTopic)) {
+
+            boolean exist = false;
+            for (SubscriptionData sub : subList) {
+                if (sub.getTopic().equals(oldTopic)) {
+                    exist = true;
+                    break;
+                }
+            }
+
+            if (!exist) {
                 log.warn("subscription changed, group: {} remove topic {} {}",
                     this.groupName,
                     oldTopic,

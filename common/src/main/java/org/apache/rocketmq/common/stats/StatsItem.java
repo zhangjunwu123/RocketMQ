@@ -20,33 +20,33 @@ package org.apache.rocketmq.common.stats;
 import java.util.LinkedList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
-
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
+import org.slf4j.Logger;
 
 public class StatsItem {
-    private final LongAdder value = new LongAdder();
 
-    private final LongAdder times = new LongAdder();
+    private final AtomicLong value = new AtomicLong(0);
 
-    private final LinkedList<CallSnapshot> csListMinute = new LinkedList<>();
+    private final AtomicLong times = new AtomicLong(0);
 
-    private final LinkedList<CallSnapshot> csListHour = new LinkedList<>();
+    private final LinkedList<CallSnapshot> csListMinute = new LinkedList<CallSnapshot>();
 
-    private final LinkedList<CallSnapshot> csListDay = new LinkedList<>();
+    private final LinkedList<CallSnapshot> csListHour = new LinkedList<CallSnapshot>();
+
+    private final LinkedList<CallSnapshot> csListDay = new LinkedList<CallSnapshot>();
 
     private final String statsName;
     private final String statsKey;
     private final ScheduledExecutorService scheduledExecutorService;
+    private final Logger log;
 
-    private final Logger logger;
-
-    public StatsItem(String statsName, String statsKey, ScheduledExecutorService scheduledExecutorService, Logger logger) {
+    public StatsItem(String statsName, String statsKey, ScheduledExecutorService scheduledExecutorService,
+        Logger log) {
         this.statsName = statsName;
         this.statsKey = statsKey;
         this.scheduledExecutorService = scheduledExecutorService;
-        this.logger = logger;
+        this.log = log;
     }
 
     private static StatsSnapshot computeStatsData(final LinkedList<CallSnapshot> csList) {
@@ -55,14 +55,13 @@ public class StatsItem {
             double tps = 0;
             double avgpt = 0;
             long sum = 0;
-            long timesDiff = 0;
             if (!csList.isEmpty()) {
                 CallSnapshot first = csList.getFirst();
                 CallSnapshot last = csList.getLast();
                 sum = last.getValue() - first.getValue();
                 tps = (sum * 1000.0d) / (last.getTimestamp() - first.getTimestamp());
 
-                timesDiff = last.getTimes() - first.getTimes();
+                long timesDiff = last.getTimes() - first.getTimes();
                 if (timesDiff > 0) {
                     avgpt = (sum * 1.0d) / timesDiff;
                 }
@@ -71,7 +70,6 @@ public class StatsItem {
             statsSnapshot.setSum(sum);
             statsSnapshot.setTps(tps);
             statsSnapshot.setAvgpt(avgpt);
-            statsSnapshot.setTimes(timesDiff);
         }
 
         return statsSnapshot;
@@ -129,7 +127,7 @@ public class StatsItem {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computeNextMinutesTimeMillis() - System.currentTimeMillis()), 1000 * 60, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computNextMinutesTimeMillis() - System.currentTimeMillis()), 1000 * 60, TimeUnit.MILLISECONDS);
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -139,7 +137,7 @@ public class StatsItem {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computeNextHourTimeMillis() - System.currentTimeMillis()), 1000 * 60 * 60, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computNextHourTimeMillis() - System.currentTimeMillis()), 1000 * 60 * 60, TimeUnit.MILLISECONDS);
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -149,16 +147,13 @@ public class StatsItem {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis()) - 2000, 1000 * 60 * 60 * 24, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computNextMorningTimeMillis() - System.currentTimeMillis()) - 2000, 1000 * 60 * 60 * 24, TimeUnit.MILLISECONDS);
     }
 
     public void samplingInSeconds() {
         synchronized (this.csListMinute) {
-            if (this.csListMinute.size() == 0) {
-                this.csListMinute.add(new CallSnapshot(System.currentTimeMillis() - 10 * 1000, 0, 0));
-            }
-            this.csListMinute.add(new CallSnapshot(System.currentTimeMillis(), this.times.sum(), this.value
-                .sum()));
+            this.csListMinute.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
+                .get()));
             if (this.csListMinute.size() > 7) {
                 this.csListMinute.removeFirst();
             }
@@ -167,11 +162,8 @@ public class StatsItem {
 
     public void samplingInMinutes() {
         synchronized (this.csListHour) {
-            if (this.csListHour.size() == 0) {
-                this.csListHour.add(new CallSnapshot(System.currentTimeMillis() - 10 * 60 * 1000, 0, 0));
-            }
-            this.csListHour.add(new CallSnapshot(System.currentTimeMillis(), this.times.sum(), this.value
-                .sum()));
+            this.csListHour.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
+                .get()));
             if (this.csListHour.size() > 7) {
                 this.csListHour.removeFirst();
             }
@@ -180,11 +172,8 @@ public class StatsItem {
 
     public void samplingInHour() {
         synchronized (this.csListDay) {
-            if (this.csListDay.size() == 0) {
-                this.csListDay.add(new CallSnapshot(System.currentTimeMillis() - 1 * 60 * 60 * 1000, 0, 0));
-            }
-            this.csListDay.add(new CallSnapshot(System.currentTimeMillis(), this.times.sum(), this.value
-                .sum()));
+            this.csListDay.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
+                .get()));
             if (this.csListDay.size() > 25) {
                 this.csListDay.removeFirst();
             }
@@ -193,28 +182,35 @@ public class StatsItem {
 
     public void printAtMinutes() {
         StatsSnapshot ss = computeStatsData(this.csListMinute);
-        logger.info(String.format("[%s] [%s] Stats In One Minute, ", this.statsName, this.statsKey) + statPrintDetail(ss));
+        log.info(String.format("[%s] [%s] Stats In One Minute, SUM: %d TPS: %.2f AVGPT: %.2f",
+            this.statsName,
+            this.statsKey,
+            ss.getSum(),
+            ss.getTps(),
+            ss.getAvgpt()));
     }
 
     public void printAtHour() {
         StatsSnapshot ss = computeStatsData(this.csListHour);
-        logger.info(String.format("[%s] [%s] Stats In One Hour, ", this.statsName, this.statsKey) + statPrintDetail(ss));
-
+        log.info(String.format("[%s] [%s] Stats In One Hour, SUM: %d TPS: %.2f AVGPT: %.2f",
+            this.statsName,
+            this.statsKey,
+            ss.getSum(),
+            ss.getTps(),
+            ss.getAvgpt()));
     }
 
     public void printAtDay() {
         StatsSnapshot ss = computeStatsData(this.csListDay);
-        logger.info(String.format("[%s] [%s] Stats In One Day, ", this.statsName, this.statsKey) + statPrintDetail(ss));
+        log.info(String.format("[%s] [%s] Stats In One Day, SUM: %d TPS: %.2f AVGPT: %.2f",
+            this.statsName,
+            this.statsKey,
+            ss.getSum(),
+            ss.getTps(),
+            ss.getAvgpt()));
     }
 
-    protected String statPrintDetail(StatsSnapshot ss) {
-        return String.format("SUM: %d TPS: %.2f AVGPT: %.2f",
-                ss.getSum(),
-                ss.getTps(),
-                ss.getAvgpt());
-    }
-
-    public LongAdder getValue() {
+    public AtomicLong getValue() {
         return value;
     }
 
@@ -226,7 +222,7 @@ public class StatsItem {
         return statsName;
     }
 
-    public LongAdder getTimes() {
+    public AtomicLong getTimes() {
         return times;
     }
 }

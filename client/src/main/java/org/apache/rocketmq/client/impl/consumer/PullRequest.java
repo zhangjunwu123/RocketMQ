@@ -17,21 +17,20 @@
 package org.apache.rocketmq.client.impl.consumer;
 
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.common.message.MessageRequestMode;
 
-public class PullRequest implements MessageRequest {
+public class PullRequest {
     private String consumerGroup;
     private MessageQueue messageQueue;
     private ProcessQueue processQueue;
     private long nextOffset;
-    private boolean previouslyLocked = false;
+    private boolean lockedFirst = false;
 
-    public boolean isPreviouslyLocked() {
-        return previouslyLocked;
+    public boolean isLockedFirst() {
+        return lockedFirst;
     }
 
-    public void setPreviouslyLocked(boolean previouslyLocked) {
-        this.previouslyLocked = previouslyLocked;
+    public void setLockedFirst(boolean lockedFirst) {
+        this.lockedFirst = lockedFirst;
     }
 
     public String getConsumerGroup() {
@@ -101,10 +100,5 @@ public class PullRequest implements MessageRequest {
 
     public void setProcessQueue(ProcessQueue processQueue) {
         this.processQueue = processQueue;
-    }
-
-    @Override
-    public MessageRequestMode getMessageRequestMode() {
-        return MessageRequestMode.PULL;
     }
 }

@@ -19,7 +19,7 @@
     <parent>
         <groupId>org.apache.rocketmq</groupId>
         <artifactId>rocketmq-all</artifactId>
-        <version>5.1.4</version>
+        <version>4.2.0</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -28,7 +28,7 @@
     <name>rocketmq-tools ${project.version}</name>
 
     <properties>
-        <project.root>${basedir}/..</project.root>
+        <maven.test.skip>true</maven.test.skip>
     </properties>
 
     <dependencies>
@@ -38,7 +38,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>rocketmq-acl</artifactId>
+            <artifactId>rocketmq-store</artifactId>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -49,16 +49,16 @@
             <artifactId>fastjson</artifactId>
         </dependency>
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -20,25 +20,24 @@ package org.apache.rocketmq.client.common;
 import java.util.Random;
 
 public class ThreadLocalIndex {
-    private final ThreadLocal<Integer> threadLocalIndex = new ThreadLocal<>();
+    private final ThreadLocal<Integer> threadLocalIndex = new ThreadLocal<Integer>();
     private final Random random = new Random();
-    private final static int POSITIVE_MASK = 0x7FFFFFFF;
 
-    public int incrementAndGet() {
+    public int getAndIncrement() {
         Integer index = this.threadLocalIndex.get();
         if (null == index) {
-            index = random.nextInt();
+            index = Math.abs(random.nextInt());
+            if (index < 0)
+                index = 0;
+            this.threadLocalIndex.set(index);
         }
-        this.threadLocalIndex.set(++index);
-        return index & POSITIVE_MASK;
-    }
 
-    public void reset() {
-        int index = Math.abs(random.nextInt(Integer.MAX_VALUE));
-        if (index < 0) {
+        index = Math.abs(index + 1);
+        if (index < 0)
             index = 0;
-        }
+
         this.threadLocalIndex.set(index);
+        return index;
     }
 
     @Override

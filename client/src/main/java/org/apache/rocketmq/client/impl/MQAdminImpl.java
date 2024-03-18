@@ -17,50 +17,46 @@
 package org.apache.rocketmq.client.impl;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.apache.rocketmq.client.QueryResult;
-import org.apache.rocketmq.client.Validators;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
 import org.apache.rocketmq.client.impl.producer.TopicPublishInfo;
-import org.apache.rocketmq.common.BoundaryType;
+import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicConfig;
 import org.apache.rocketmq.common.help.FAQUrl;
+import org.apache.rocketmq.common.message.MessageClientIDSetter;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageId;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.common.utils.NetworkUtil;
+import org.apache.rocketmq.common.protocol.ResponseCode;
+import org.apache.rocketmq.common.protocol.header.QueryMessageRequestHeader;
+import org.apache.rocketmq.common.protocol.header.QueryMessageResponseHeader;
+import org.apache.rocketmq.common.protocol.route.BrokerData;
+import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.remoting.InvokeCallback;
+import org.apache.rocketmq.remoting.common.RemotingUtil;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.netty.ResponseFuture;
-import org.apache.rocketmq.remoting.protocol.NamespaceUtil;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.remoting.protocol.ResponseCode;
-import org.apache.rocketmq.remoting.protocol.header.QueryMessageRequestHeader;
-import org.apache.rocketmq.remoting.protocol.header.QueryMessageResponseHeader;
-import org.apache.rocketmq.remoting.protocol.route.BrokerData;
-import org.apache.rocketmq.remoting.protocol.route.TopicRouteData;
-import org.apache.rocketmq.logging.org.slf4j.Logger;
-import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 public class MQAdminImpl {
 
-    private static final Logger log = LoggerFactory.getLogger(MQAdminImpl.class);
+    private final Logger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
     private long timeoutMillis = 6000;
 
@@ -77,14 +73,11 @@ public class MQAdminImpl {
     }
 
     public void createTopic(String key, String newTopic, int queueNum) throws MQClientException {
-        createTopic(key, newTopic, queueNum, 0, null);
+        createTopic(key, newTopic, queueNum, 0);
     }
 
-    public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag,
-        Map<String, String> attributes) throws MQClientException {
+    public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag) throws MQClientException {
         try {
-            Validators.checkTopic(newTopic);
-            Validators.isSystemTopic(newTopic);
             TopicRouteData topicRouteData = this.mQClientFactory.getMQClientAPIImpl().getTopicRouteInfoFromNameServer(key, timeoutMillis);
             List<BrokerData> brokerDataList = topicRouteData.getBrokerDatas();
             if (brokerDataList != null && !brokerDataList.isEmpty()) {
@@ -102,7 +95,6 @@ public class MQAdminImpl {
                         topicConfig.setReadQueueNums(queueNum);
                         topicConfig.setWriteQueueNums(queueNum);
                         topicConfig.setTopicSysFlag(topicSysFlag);
-                        topicConfig.setAttributes(attributes);
 
                         boolean createOK = false;
                         for (int i = 0; i < 5; i++) {
@@ -144,7 +136,7 @@ public class MQAdminImpl {
             if (topicRouteData != null) {
                 TopicPublishInfo topicPublishInfo = MQClientInstance.topicRouteData2TopicPublishInfo(topic, topicRouteData);
                 if (topicPublishInfo != null && topicPublishInfo.ok()) {
-                    return parsePublishMessageQueues(topicPublishInfo.getMessageQueueList());
+                    return topicPublishInfo.getMessageQueueList();
                 }
             }
         } catch (Exception e) {
@@ -152,16 +144,6 @@ public class MQAdminImpl {
         }
 
         throw new MQClientException("Unknow why, Can not find Message Queue for this topic, " + topic, null);
-    }
-
-    public List<MessageQueue> parsePublishMessageQueues(List<MessageQueue> messageQueueList) {
-        List<MessageQueue> resultQueues = new ArrayList<>();
-        for (MessageQueue queue : messageQueueList) {
-            String userTopic = NamespaceUtil.withoutNamespace(queue.getTopic(), this.mQClientFactory.getClientConfig().getNamespace());
-            resultQueues.add(new MessageQueue(userTopic, queue.getBrokerName(), queue.getQueueId()));
-        }
-
-        return resultQueues;
     }
 
     public Set<MessageQueue> fetchSubscribeMessageQueues(String topic) throws MQClientException {
@@ -185,21 +167,16 @@ public class MQAdminImpl {
     }
 
     public long searchOffset(MessageQueue mq, long timestamp) throws MQClientException {
-        // default return lower boundary offset when there are more than one offsets.
-        return searchOffset(mq, timestamp, BoundaryType.LOWER);
-    }
-
-    public long searchOffset(MessageQueue mq, long timestamp, BoundaryType boundaryType) throws MQClientException {
-        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
 
         if (brokerAddr != null) {
             try {
-                return this.mQClientFactory.getMQClientAPIImpl().searchOffset(brokerAddr, mq, timestamp,
-                        boundaryType, timeoutMillis);
+                return this.mQClientFactory.getMQClientAPIImpl().searchOffset(brokerAddr, mq.getTopic(), mq.getQueueId(), timestamp,
+                    timeoutMillis);
             } catch (Exception e) {
                 throw new MQClientException("Invoke Broker[" + brokerAddr + "] exception", e);
             }
@@ -209,15 +186,15 @@ public class MQAdminImpl {
     }
 
     public long maxOffset(MessageQueue mq) throws MQClientException {
-        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
 
         if (brokerAddr != null) {
             try {
-                return this.mQClientFactory.getMQClientAPIImpl().getMaxOffset(brokerAddr, mq, timeoutMillis);
+                return this.mQClientFactory.getMQClientAPIImpl().getMaxOffset(brokerAddr, mq.getTopic(), mq.getQueueId(), timeoutMillis);
             } catch (Exception e) {
                 throw new MQClientException("Invoke Broker[" + brokerAddr + "] exception", e);
             }
@@ -227,15 +204,15 @@ public class MQAdminImpl {
     }
 
     public long minOffset(MessageQueue mq) throws MQClientException {
-        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
 
         if (brokerAddr != null) {
             try {
-                return this.mQClientFactory.getMQClientAPIImpl().getMinOffset(brokerAddr, mq, timeoutMillis);
+                return this.mQClientFactory.getMQClientAPIImpl().getMinOffset(brokerAddr, mq.getTopic(), mq.getQueueId(), timeoutMillis);
             } catch (Exception e) {
                 throw new MQClientException("Invoke Broker[" + brokerAddr + "] exception", e);
             }
@@ -245,15 +222,16 @@ public class MQAdminImpl {
     }
 
     public long earliestMsgStoreTime(MessageQueue mq) throws MQClientException {
-        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(this.mQClientFactory.getBrokerNameFromMessageQueue(mq));
+            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
 
         if (brokerAddr != null) {
             try {
-                return this.mQClientFactory.getMQClientAPIImpl().getEarliestMsgStoretime(brokerAddr, mq, timeoutMillis);
+                return this.mQClientFactory.getMQClientAPIImpl().getEarliestMsgStoretime(brokerAddr, mq.getTopic(), mq.getQueueId(),
+                    timeoutMillis);
             } catch (Exception e) {
                 throw new MQClientException("Invoke Broker[" + brokerAddr + "] exception", e);
             }
@@ -262,15 +240,16 @@ public class MQAdminImpl {
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 
-    public MessageExt viewMessage(String msgId)
-        throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+    public MessageExt viewMessage(
+        String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+
         MessageId messageId = null;
         try {
             messageId = MessageDecoder.decodeMessageId(msgId);
         } catch (Exception e) {
             throw new MQClientException(ResponseCode.NO_MESSAGE, "query message by id finished, but no message.");
         }
-        return this.mQClientFactory.getMQClientAPIImpl().viewMessage(NetworkUtil.socketAddress2String(messageId.getAddress()),
+        return this.mQClientFactory.getMQClientAPIImpl().viewMessage(RemotingUtil.socketAddress2String(messageId.getAddress()),
             messageId.getOffset(), timeoutMillis);
     }
 
@@ -280,30 +259,11 @@ public class MQAdminImpl {
         return queryMessage(topic, key, maxNum, begin, end, false);
     }
 
-    public QueryResult queryMessageByUniqKey(String topic, String uniqKey, int maxNum, long begin, long end)
-        throws MQClientException, InterruptedException {
-
-        return queryMessage(topic, uniqKey, maxNum, begin, end, true);
-    }
-
     public MessageExt queryMessageByUniqKey(String topic,
         String uniqKey) throws InterruptedException, MQClientException {
-        return queryMessageByUniqKey(topic, uniqKey, System.currentTimeMillis() - 3L * 24 * 60L * 60L * 1000L, Long.MAX_VALUE);
-    }
 
-    public MessageExt queryMessageByUniqKey(String clusterName, String topic,
-        String uniqKey) throws InterruptedException, MQClientException {
-        return queryMessageByUniqKey(clusterName, topic, uniqKey, System.currentTimeMillis() - 3L * 24 * 60L * 60L * 1000L, Long.MAX_VALUE);
-    }
-
-    public MessageExt queryMessageByUniqKey(String topic,
-        String uniqKey, long begin, long end) throws InterruptedException, MQClientException {
-        return queryMessageByUniqKey(null, topic, uniqKey, begin, end);
-    }
-
-    public MessageExt queryMessageByUniqKey(String clusterName, String topic,
-        String uniqKey, long begin, long end) throws InterruptedException, MQClientException {
-        QueryResult qr = this.queryMessage(clusterName, topic, uniqKey, 32, begin, end, true);
+        QueryResult qr = this.queryMessage(topic, uniqKey, 32,
+            MessageClientIDSetter.getNearlyTimeFromID(uniqKey).getTime() - 1000, Long.MAX_VALUE, true);
         if (qr != null && qr.getMessageList() != null && qr.getMessageList().size() > 0) {
             return qr.getMessageList().get(0);
         } else {
@@ -314,12 +274,6 @@ public class MQAdminImpl {
     protected QueryResult queryMessage(String topic, String key, int maxNum, long begin, long end,
         boolean isUniqKey) throws MQClientException,
         InterruptedException {
-        return queryMessage(null, topic, key, maxNum, begin, end, isUniqKey);
-    }
-
-    protected QueryResult queryMessage(String clusterName, String topic, String key, int maxNum, long begin, long end,
-        boolean isUniqKey) throws MQClientException,
-        InterruptedException {
         TopicRouteData topicRouteData = this.mQClientFactory.getAnExistTopicRouteData(topic);
         if (null == topicRouteData) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);
@@ -327,12 +281,8 @@ public class MQAdminImpl {
         }
 
         if (topicRouteData != null) {
-            List<String> brokerAddrs = new LinkedList<>();
+            List<String> brokerAddrs = new LinkedList<String>();
             for (BrokerData brokerData : topicRouteData.getBrokerDatas()) {
-                if (clusterName != null && !clusterName.isEmpty()
-                    && !clusterName.equals(brokerData.getCluster())) {
-                    continue;
-                }
                 String addr = brokerData.selectBrokerAddr();
                 if (addr != null) {
                     brokerAddrs.add(addr);
@@ -341,7 +291,7 @@ public class MQAdminImpl {
 
             if (!brokerAddrs.isEmpty()) {
                 final CountDownLatch countDownLatch = new CountDownLatch(brokerAddrs.size());
-                final List<QueryResult> queryResultList = new LinkedList<>();
+                final List<QueryResult> queryResultList = new LinkedList<QueryResult>();
                 final ReadWriteLock lock = new ReentrantReadWriteLock(false);
 
                 for (String addr : brokerAddrs) {
@@ -408,7 +358,7 @@ public class MQAdminImpl {
                 }
 
                 long indexLastUpdateTimestamp = 0;
-                List<MessageExt> messageList = new LinkedList<>();
+                List<MessageExt> messageList = new LinkedList<MessageExt>();
                 for (QueryResult qr : queryResultList) {
                     if (qr.getIndexLastUpdateTimestamp() > indexLastUpdateTimestamp) {
                         indexLastUpdateTimestamp = qr.getIndexLastUpdateTimestamp();
@@ -417,21 +367,33 @@ public class MQAdminImpl {
                     for (MessageExt msgExt : qr.getMessageList()) {
                         if (isUniqKey) {
                             if (msgExt.getMsgId().equals(key)) {
-                                messageList.add(msgExt);
+
+                                if (messageList.size() > 0) {
+
+                                    if (messageList.get(0).getStoreTimestamp() > msgExt.getStoreTimestamp()) {
+
+                                        messageList.clear();
+                                        messageList.add(msgExt);
+                                    }
+
+                                } else {
+
+                                    messageList.add(msgExt);
+                                }
                             } else {
                                 log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
                             }
                         } else {
                             String keys = msgExt.getKeys();
-                            String msgTopic = msgExt.getTopic();
                             if (keys != null) {
                                 boolean matched = false;
                                 String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
-                                for (String k : keyArray) {
-                                    // both topic and key must be equal at the same time
-                                    if (Objects.equals(key, k) && Objects.equals(topic, msgTopic)) {
-                                        matched = true;
-                                        break;
+                                if (keyArray != null) {
+                                    for (String k : keyArray) {
+                                        if (key.equals(k)) {
+                                            matched = true;
+                                            break;
+                                        }
                                     }
                                 }
 
@@ -442,13 +404,6 @@ public class MQAdminImpl {
                                 }
                             }
                         }
-                    }
-                }
-
-                //If namespace not null , reset Topic without namespace.
-                if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
-                    for (MessageExt messageExt : messageList) {
-                        messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.mQClientFactory.getClientConfig().getNamespace()));
                     }
                 }
 

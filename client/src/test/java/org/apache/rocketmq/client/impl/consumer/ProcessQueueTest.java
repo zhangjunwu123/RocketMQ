@@ -20,8 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.remoting.protocol.body.ProcessQueueInfo;
-import org.assertj.core.util.Lists;
+import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -39,7 +38,7 @@ public class ProcessQueueTest {
 
         assertThat(pq.getMsgCount().get()).isEqualTo(100);
 
-        pq.takeMessages(10);
+        pq.takeMessags(10);
         pq.commit();
 
         assertThat(pq.getMsgCount().get()).isEqualTo(90);
@@ -56,25 +55,13 @@ public class ProcessQueueTest {
 
         assertThat(pq.getMsgSize().get()).isEqualTo(100 * 123);
 
-        pq.takeMessages(10);
+        pq.takeMessags(10);
         pq.commit();
 
         assertThat(pq.getMsgSize().get()).isEqualTo(90 * 123);
 
         pq.removeMessage(Collections.singletonList(pq.getMsgTreeMap().lastEntry().getValue()));
         assertThat(pq.getMsgSize().get()).isEqualTo(89 * 123);
-    }
-
-    @Test
-    public void testContainsMessage() {
-        ProcessQueue pq = new ProcessQueue();
-        final List<MessageExt> messageList = createMessageList(2);
-        final MessageExt message0 = messageList.get(0);
-        final MessageExt message1 = messageList.get(1);
-
-        pq.putMessage(Lists.list(message0));
-        assertThat(pq.containsMessage(message0)).isTrue();
-        assertThat(pq.containsMessage(message1)).isFalse();
     }
 
     @Test
@@ -87,17 +74,17 @@ public class ProcessQueueTest {
 
         assertThat(processQueueInfo.getCachedMsgSizeInMiB()).isEqualTo(12);
 
-        pq.takeMessages(10000);
+        pq.takeMessags(10000);
         pq.commit();
         pq.fillProcessQueueInfo(processQueueInfo);
         assertThat(processQueueInfo.getCachedMsgSizeInMiB()).isEqualTo(10);
 
-        pq.takeMessages(10000);
+        pq.takeMessags(10000);
         pq.commit();
         pq.fillProcessQueueInfo(processQueueInfo);
         assertThat(processQueueInfo.getCachedMsgSizeInMiB()).isEqualTo(9);
 
-        pq.takeMessages(80000);
+        pq.takeMessags(80000);
         pq.commit();
         pq.fillProcessQueueInfo(processQueueInfo);
         assertThat(processQueueInfo.getCachedMsgSizeInMiB()).isEqualTo(0);
@@ -108,7 +95,7 @@ public class ProcessQueueTest {
     }
 
     private List<MessageExt> createMessageList(int count) {
-        List<MessageExt> messageExtList = new ArrayList<>();
+        List<MessageExt> messageExtList = new ArrayList<MessageExt>();
         for (int i = 0; i < count; i++) {
             MessageExt messageExt = new MessageExt();
             messageExt.setQueueOffset(i);

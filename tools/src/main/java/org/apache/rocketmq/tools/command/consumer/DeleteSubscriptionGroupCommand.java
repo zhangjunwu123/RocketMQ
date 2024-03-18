@@ -27,6 +27,7 @@ import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 import org.apache.rocketmq.tools.command.CommandUtil;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
+import org.apache.rocketmq.tools.command.topic.DeleteTopicSubCommand;
 
 public class DeleteSubscriptionGroupCommand implements SubCommand {
     @Override
@@ -53,10 +54,6 @@ public class DeleteSubscriptionGroupCommand implements SubCommand {
         opt.setRequired(true);
         options.addOption(opt);
 
-        opt = new Option("r", "removeOffset", true, "remove offset");
-        opt.setRequired(false);
-        options.addOption(opt);
-
         return options;
     }
 
@@ -67,19 +64,12 @@ public class DeleteSubscriptionGroupCommand implements SubCommand {
         try {
             // groupName
             String groupName = commandLine.getOptionValue('g').trim();
-            boolean cleanOffset = false;
-            if (commandLine.hasOption('r')) {
-                try {
-                    cleanOffset = Boolean.valueOf(commandLine.getOptionValue('r').trim());
-                } catch (Exception e) {
-                }
-            }
 
             if (commandLine.hasOption('b')) {
                 String addr = commandLine.getOptionValue('b').trim();
                 adminExt.start();
 
-                adminExt.deleteSubscriptionGroup(addr, groupName, cleanOffset);
+                adminExt.deleteSubscriptionGroup(addr, groupName);
                 System.out.printf("delete subscription group [%s] from broker [%s] success.%n", groupName,
                     addr);
 
@@ -90,15 +80,17 @@ public class DeleteSubscriptionGroupCommand implements SubCommand {
 
                 Set<String> masterSet = CommandUtil.fetchMasterAddrByClusterName(adminExt, clusterName);
                 for (String master : masterSet) {
-                    adminExt.deleteSubscriptionGroup(master, groupName, cleanOffset);
+                    adminExt.deleteSubscriptionGroup(master, groupName);
                     System.out.printf(
                         "delete subscription group [%s] from broker [%s] in cluster [%s] success.%n",
                         groupName, master, clusterName);
                 }
 
                 try {
-                    adminExt.deleteTopic(MixAll.RETRY_GROUP_TOPIC_PREFIX + groupName, clusterName);
-                    adminExt.deleteTopic(MixAll.DLQ_GROUP_TOPIC_PREFIX + groupName, clusterName);
+                    DeleteTopicSubCommand.deleteTopic(adminExt, clusterName, MixAll.RETRY_GROUP_TOPIC_PREFIX
+                        + groupName);
+                    DeleteTopicSubCommand.deleteTopic(adminExt, clusterName, MixAll.DLQ_GROUP_TOPIC_PREFIX
+                        + groupName);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

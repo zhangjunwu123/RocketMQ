@@ -16,24 +16,19 @@
  */
 package org.apache.rocketmq.example.openmessaging;
 
-import io.openmessaging.Future;
 import io.openmessaging.Message;
 import io.openmessaging.MessagingAccessPoint;
-import io.openmessaging.OMS;
-import io.openmessaging.producer.Producer;
-import io.openmessaging.producer.SendResult;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CountDownLatch;
+import io.openmessaging.MessagingAccessPointFactory;
+import io.openmessaging.Producer;
+import io.openmessaging.Promise;
+import io.openmessaging.PromiseListener;
+import io.openmessaging.SendResult;
+import java.nio.charset.Charset;
 
 public class SimpleProducer {
-
-    public static final String URL = "oms:rocketmq://localhost:9876/default:default";
-    public static final String QUEUE = "OMS_HELLO_TOPIC";
-
     public static void main(String[] args) {
-        // You need to set the environment variable OMS_RMQ_DIRECT_NAME_SRV=true
-        final MessagingAccessPoint messagingAccessPoint =
-            OMS.getMessagingAccessPoint(URL);
+        final MessagingAccessPoint messagingAccessPoint = MessagingAccessPointFactory
+            .getMessagingAccessPoint("openmessaging:rocketmq://IP1:9876,IP2:9876/namespace");
 
         final Producer producer = messagingAccessPoint.createProducer();
 
@@ -43,40 +38,39 @@ public class SimpleProducer {
         producer.startup();
         System.out.printf("Producer startup OK%n");
 
-        {
-            Message message = producer.createBytesMessage(QUEUE, "OMS_HELLO_BODY".getBytes(StandardCharsets.UTF_8));
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                producer.shutdown();
+                messagingAccessPoint.shutdown();
+            }
+        }));
 
+        {
+            Message message = producer.createBytesMessageToTopic("OMS_HELLO_TOPIC", "OMS_HELLO_BODY".getBytes(Charset.forName("UTF-8")));
             SendResult sendResult = producer.send(message);
             //final Void aVoid = result.get(3000L);
             System.out.printf("Send async message OK, msgId: %s%n", sendResult.messageId());
         }
 
-        final CountDownLatch countDownLatch = new CountDownLatch(1);
         {
-            final Future<SendResult> result = producer.sendAsync(producer.createBytesMessage(QUEUE,
-                "OMS_HELLO_BODY".getBytes(StandardCharsets.UTF_8)));
-            result.addListener(future -> {
-                if (future.getThrowable() != null) {
-                    System.out.printf("Send async message Failed, error: %s%n", future.getThrowable().getMessage());
-                } else {
-                    System.out.printf("Send async message OK, msgId: %s%n", future.get().messageId());
+            final Promise<SendResult> result = producer.sendAsync(producer.createBytesMessageToTopic("OMS_HELLO_TOPIC", "OMS_HELLO_BODY".getBytes(Charset.forName("UTF-8"))));
+            result.addListener(new PromiseListener<SendResult>() {
+                @Override
+                public void operationCompleted(Promise<SendResult> promise) {
+                    System.out.printf("Send async message OK, msgId: %s%n", promise.get().messageId());
                 }
-                countDownLatch.countDown();
+
+                @Override
+                public void operationFailed(Promise<SendResult> promise) {
+                    System.out.printf("Send async message Failed, error: %s%n", promise.getThrowable().getMessage());
+                }
             });
         }
 
         {
-            producer.sendOneway(producer.createBytesMessage("OMS_HELLO_TOPIC", "OMS_HELLO_BODY".getBytes(StandardCharsets.UTF_8)));
+            producer.sendOneway(producer.createBytesMessageToTopic("OMS_HELLO_TOPIC", "OMS_HELLO_BODY".getBytes(Charset.forName("UTF-8"))));
             System.out.printf("Send oneway message OK%n");
         }
-
-        try {
-            countDownLatch.await();
-            // Wait some time for one-way delivery.
-            Thread.sleep(500);
-        } catch (InterruptedException ignore) {
-        }
-
-        producer.shutdown();
     }
 }
