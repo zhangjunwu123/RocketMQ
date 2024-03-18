@@ -43,6 +43,16 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ *
+ * 延时任务
+ * DelayTimeLevel大于0，那么替换topic为SCHEDULE_TOPIC_XXXX，替换queueId为延迟队列id， id = level - 1，
+ * 如果延迟级别大于最大级别，则设置为最大级别18，，默认延迟2h
+ *
+ * 在broker启动执行DefaultMessageStore#load方法加载Commit Log、Consume Queue、index file等文件，将数据加载到内存中，
+ * 并完成数据的恢复的时候，同样会执行ScheduleMessageService#load方法，加载延迟消息数据，初始化delayLevelTable和offsetTable
+
+ * */
 public class ScheduleMessageService extends ConfigManager {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 

@@ -43,7 +43,10 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.help.FAQUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+/**
+ *
+ * 属性KEY类
+ * */
 public class MixAll {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 

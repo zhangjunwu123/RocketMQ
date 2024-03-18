@@ -59,10 +59,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.apache.rocketmq.store.config.BrokerRole.SLAVE;
-
+/**
+ * 消息存储实现类
+ *
+ * */
 public class DefaultMessageStore implements MessageStore {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 消息存储属性类
+     * */
     private final MessageStoreConfig messageStoreConfig;
     // CommitLog
     private final CommitLog commitLog;

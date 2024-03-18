@@ -47,6 +47,8 @@ public class NamesrvStartup {
     }
 
     public static NamesrvController main0(String[] args) {
+        //1.解析启动入参，将入参解析【-c 解析配置文件  -p 直接入参】到NameServConfig与NettyServerConfig中
+
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
         try {
             //PackageConflictDetect.detectFastjson();
@@ -61,6 +63,7 @@ public class NamesrvStartup {
             final NamesrvConfig namesrvConfig = new NamesrvConfig();
             final NettyServerConfig nettyServerConfig = new NettyServerConfig();
             nettyServerConfig.setListenPort(9876);
+            //解析入参中-c指定的配置文件
             if (commandLine.hasOption('c')) {
                 String file = commandLine.getOptionValue('c');
                 if (file != null) {
@@ -76,7 +79,7 @@ public class NamesrvStartup {
                     in.close();
                 }
             }
-
+            //解析直接入参
             if (commandLine.hasOption('p')) {
                 MixAll.printObjectProperties(null, namesrvConfig);
                 MixAll.printObjectProperties(null, nettyServerConfig);
